@@ -619,7 +619,7 @@ Every implementation message follows this exact template:
 - **Tests:** `flutter test` + `flutter analyze` green immediately before push — never push failing tests (§12).
 - **Done:** `git status` clean; remote shows the commit.
 
-#### Iteration 3 — Strict analysis rules + process docs ⬜
+#### Iteration 3 — Strict analysis rules + process docs ✅ (2026-11-17)
 
 - **Build:** tighten `analysis_options.yaml` (stricter lints: `prefer_single_quotes`, `require_trailing_commas`, no stray `print`; keep existing excludes); verify `PROJECT_PROCESS.md` + `README.md` live at repo root and are tracked.
 - **Files:** `analysis_options.yaml`, docs if untracked.
