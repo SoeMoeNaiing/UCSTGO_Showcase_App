@@ -626,7 +626,7 @@ Every implementation message follows this exact template:
 - **Tests:** `flutter analyze` → 0 issues; `flutter test` green.
 - **Done:** analyze + test clean; commit.
 
-#### Iteration 4 — Design tokens (colors, spacing, typography) ⬜
+#### Iteration 4 — Design tokens (colors, spacing, typography) ✅ (2026-11-17)
 
 - **Build:** `AppColors` (all §5.2 tokens), `AppSpacing` (§5.4 scale), `AppTypography` (Caveat/Patrick Hand via `google_fonts`, sizes per §5.3). All `static const` — the only place a hex value may ever appear.
 - **Files:** `lib/core/theme/app_colors.dart`, `app_spacing.dart`, `app_typography.dart`.
