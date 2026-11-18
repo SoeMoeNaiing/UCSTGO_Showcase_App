@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/feedback/presentation/screens/feedback_preview_screen.dart';
@@ -6,7 +7,7 @@ import 'features/feedback/presentation/screens/feedback_preview_screen.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   AppTheme.loadFonts();
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 /// Root app. The real router/shell arrives with `FeedbackScreen` at

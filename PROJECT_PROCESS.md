@@ -118,6 +118,7 @@ These rules govern every decision. If a shortcut violates one, we don't take it.
 4. **Design tokens over hardcoded values.** No `Color(0xFF...)`, no `TextStyle(fontSize: 17)` scattered in widgets. Everything comes from `core/theme/`.
 5. **No `setState` for shared state.** Local ephemeral state (e.g. a focus index in a single widget) may use `setState`. Anything the app cares about goes through Riverpod.
 6. **Local-first writes.** A submission is durable in Drift *before* any network call. UI success is never blocked by connectivity.
+7. **No `BuildContext` in controllers or use cases (§2.1.7).** Presentation logic depends only on providers and domain seams, so it is unit-testable with `ProviderContainer` and survives UI redesigns.
 
 ### 2.2 Development Workflow
 
@@ -153,7 +154,7 @@ These rules govern every decision. If a shortcut violates one, we don't take it.
 | Animations (decorative) | Lottie (`lottie`) | Only lightweight loops; avoid heavy files on TV |
 | Animations (declarative) | `flutter_animate` | Entrance effects, staggers, sequencing |
 | Custom graphics | `CustomPainter` + `AnimationController` | Doodle art, procedural effects |
-| Doodle annotations | `rough_notation` | Sketchy highlight boxes, underlines |
+| Doodle annotations | in-house `CustomPainter` (I19) | Sketchy focus frame; `rough_notation` was evaluated and dropped for timer races |
 | Sketch image entrance | `sketchify` | Line-drawing animation for logos |
 | Rating widget | `fancy_rating_bar` (optional) | Evaluate in Phase 4; may build custom for full control |
 | Fonts | `google_fonts` | Zero-asset setup; lock family in Phase 0 |
@@ -606,6 +607,7 @@ Every implementation message follows this exact template:
 | 14 | `connectivity_plus` | pub |
 | 15 | dev: `mocktail` | pub |
 | 19 | — (built-in `AnimatedScale` + in-house focus-frame painter) | none |
+| 20 | `flutter_riverpod` | pub (controller state machine, no `BuildContext`) |
 | 22 | `flutter_animate` | pub (thank-you entrance motion) |
 | 24 | `go_router` | pub (screen wiring) |
 | 25 | `fancy_rating_bar` (evaluate), `sketchify` (optional) | pub (keep only if sketch look holds) |
@@ -801,11 +803,12 @@ Every implementation message follows this exact template:
 
 > **Temporary preview checkpoint (2026-11-18 → deleted at I24):** `main.dart` boots into a throwaway `FeedbackPreviewScreen` (`KioskScaffold` + title + `EmojiPicker` + a "You picked" echo) so the interactive picker can be seen on a phone with `flutter run` immediately. Deliberately not the real flow: no repository, no controller, no router, nothing persisted. I24 replaces it with the real `FeedbackScreen` and deletes the file; the default counter screen is retired.
 
-#### Iteration 20 — FeedbackController (Riverpod notifier) ⬜
+#### Iteration 20 — FeedbackController (Riverpod notifier) ✅ (2026-11-18)
 
 - **Build:** state machine `idle → selecting → submitting → success | cooldown | error`, with the submitter injected (fake first — wiring lands in Iteration 21).
+- **Decision:** states are sealed immutable classes with value equality so every transition is assertable and the I24 screen can `switch` exhaustively. The only side effect is a narrow `FeedbackSubmitter.submit(EmojiChoice) → Future<SubmissionResult>` interface injected via `feedbackSubmitterProvider` (throws until overridden; I21 supplies `SubmitFeedback`). `select()` emits selecting → submitting *before* the first await; selecting/submitting/success/cooldown reject re-entry (only idle and error accept a new selection; `reset()` returns to idle for the I24 prompt flow). `rejected` maps to a cooldown message, `failedPermanent` and thrown errors to user-facing error copy — the log-safe `reason` is never shown. `main.dart` gets `ProviderScope` now so later providers have a home.
 - **Files:** `lib/features/feedback/presentation/controllers/feedback_controller.dart`.
-- **Tests:** unit tests — each state transition; double-select ignored while `submitting`; error state carries a user-facing message; no `BuildContext` in the controller (§2.1.5).
+- **Tests:** unit tests — each state transition; double-select ignored while `submitting`; error state carries a user-facing message; no `BuildContext` in the controller (§2.1.7).
 - **Done:** tests green.
 
 #### Iteration 21 — SubmitFeedback use case + controller wiring ⬜

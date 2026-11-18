@@ -69,8 +69,8 @@ Visitor taps emoji
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
 - **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
 - **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
-- **Phase 3 started:** `EmojiPicker` — three hand-drawn faces, now interactive: tap/Enter/D-pad activation, arrow traversal, a self-drawing rough focus frame, and a 2s double-tap throttle — **163 tests**.
-- **Next:** Iteration 20 — `FeedbackController` state machine (`idle → selecting → submitting → success | cooldown | error`).
+- **Phase 3 started:** `EmojiPicker` (three hand-drawn faces; tap/Enter/D-pad, arrow traversal, self-drawing focus frame, 2s throttle) + `FeedbackController` (pure Riverpod state machine, injected submitter, no `BuildContext`) — **174 tests**.
+- **Next:** Iteration 21 — `SubmitFeedback` use case + controller wiring (clientId/deviceId → local-first repo submit → cooldown on rejection).
 - **Phone preview:** `flutter run` now boots the **temporary interactive picker harness** — tap, Enter/D-pad, focus frame, and the 2s throttle work on the device. The full `FeedbackScreen` lands at **Iteration 24**; rating at **I29**; polished offline release APK at **I33**.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
@@ -104,4 +104,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 20:** `FeedbackController` — the pure state machine behind the screen (`idle → selecting → submitting → success | cooldown | error`), tested without any `BuildContext`. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 21:** `SubmitFeedback` — generate the idempotency key, fetch the anonymous device ID, build the entity, submit through the local-first repository, and start the cooldown on rejection. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
