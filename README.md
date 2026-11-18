@@ -67,8 +67,8 @@ Visitor taps emoji
 
 - Flutter **3.47.9 stable** / Dart **3.13.7** (matches `pubspec.yaml`).
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
-- **I7–I9 complete:** domain entities, repository contracts, and the Drift queue (`AppDatabase`, both pending tables, UTC-preserving timestamps) — 62 tests.
-- **Next:** Iteration 10 — `FeedbackLocalDataSource` (Drift CRUD + status transitions).
+- **I7–I10 complete:** domain entities, repository contracts, Drift queue, and the typed queue CRUD (69 tests).
+- **Next:** Iteration 11 — `FeedbackRepositoryImpl` (local-first orchestration, the last step to **M2**).
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.
@@ -101,4 +101,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 10:** `FeedbackLocalDataSource` — insert, pending(limit), status transitions, and retry scheduling on the Drift queue. See [§10.4 of PROJECT_PROCESS.md](PROJECT_PROCESS.md) for the exact card. 🚀
+**Iteration 11:** `FeedbackRepositoryImpl` — durable local write first, best-effort remote through the unplugged seam, all five §6.6 outcomes. This closes milestone **M2** (offline-durable pipeline). See [§10.4 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀

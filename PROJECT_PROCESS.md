@@ -700,7 +700,7 @@ Every implementation message follows this exact template:
 - **Note:** queue infrastructure lives under `features/feedback/data/local/` per §4.1; other features import it **only from their own `data/` layer** (rating plugs in at Iteration 28).
 - **Done:** codegen committed; in-memory tests green.
 
-#### Iteration 10 — FeedbackLocalDataSource (Drift CRUD) ⬜
+#### Iteration 10 — FeedbackLocalDataSource (Drift CRUD) ✅ (2026-11-18)
 
 - **Build:** `insert()`, `pending(limit)`, `markSynced()`, `markRejected()`, `markFailedPermanent()`, `scheduleRetry(clientId, nextRetryAt)`, `delete()`; entity↔row mapping.
 - **Files:** `lib/features/feedback/data/datasources/feedback_local_datasource.dart`.
