@@ -739,7 +739,7 @@ Every implementation message follows this exact template:
 - **Deps:** none new (`shared_preferences` from I12).
 - **Done:** tests green (30s default tunable per §13).
 
-#### Iteration 14 — ConnectivityService (stream + reachability probe) ⬜
+#### Iteration 14 — ConnectivityService (stream + reachability probe) ✅ (2026-11-18)
 
 - **Build:** combines the `connectivity_plus` stream (physical link) with an on-demand reachability probe (injectable HTTP client, `HEAD` to the backend base URL from `--dart-define SUPABASE_URL`, 5s timeout) → exposes `online` stream + `checkNow()`. With no URL configured (Phases 1–5) it falls back to link state; the remote seam stays `Unavailable`, so nothing is uploaded. Captive-portal safe: link up + probe fails = offline (§6.7).
 - **Files:** `lib/services/connectivity_service.dart`.
