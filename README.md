@@ -68,8 +68,10 @@ Visitor taps emoji
 - Flutter **3.47.9 stable** / Dart **3.13.7** (matches `pubspec.yaml`).
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
 - **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
-- **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — **149 tests**, still zero network required.
-- **Next:** Iteration 18 — **UI begins**: static `EmojiPicker` with three sketch-outlined faces.
+- **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
+- **Phase 3 started:** static `EmojiPicker` — three hand-drawn faces (`CustomPainter`, adaptive size, one semantic node each) — **155 tests**.
+- **Next:** Iteration 19 — focus + select interaction + 2s double-tap throttle.
+- **Phone preview:** `flutter run` still shows the temporary counter screen. The first real screen lands at **Iteration 24** (`FeedbackScreen`); rating at **I29**; polished offline release APK at **I33**.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.
@@ -102,4 +104,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 18:** static `EmojiPicker` — three sketch-outlined faces (`CustomPainter`, tokens only, semantic labels, 10-foot sizing), render-only. **The UI starts here.** See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 19:** focus + select — tap **and** D-pad activation, unmistakable focus state, 2s double-tap throttle. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀

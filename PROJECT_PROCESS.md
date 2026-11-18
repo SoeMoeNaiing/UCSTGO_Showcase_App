@@ -781,12 +781,13 @@ Every implementation message follows this exact template:
 **Exit gate:** end-to-end widget test proves emoji → submit → thank-you → prompt; every interactive widget uses focusable components (no `GestureDetector`-only).
 **Deliverables:** `EmojiPicker`, focus/select interaction, `FeedbackController`, `SubmitFeedback` use case, `ThankYouCard`, `RateProjectsPrompt`, `FeedbackScreen`, `go_router` wiring.
 
-#### Iteration 18 — Static EmojiPicker ⬜
+#### Iteration 18 — Static EmojiPicker ✅ (2026-11-18)
 
 - **Build:** three sketch-outlined faces via `CustomPainter` doodle strokes (happy / neutral / sad), paper palette, 10-foot sizing, semantics labels — render only, no interaction.
+- **Decision:** face size is adaptive — each face takes a third of the row minus gutters, capped at 180dp (`maxFaceSize` is configurable so Phase 7 can raise it for 4K). The painted face is a wobbly double-pass ink outline plus an accent marker wash; cheeks only on the happy face. Visible copy is friendly ("Loved it" / "Okay" / "Not great") while the single semantic node speaks the domain vocabulary ("Satisfied" / "Neutral" / "Dissatisfied"); visible text is excluded from semantics to avoid double-reading.
 - **Files:** `lib/features/feedback/presentation/widgets/emoji_picker.dart`.
-- **Tests:** widget test — renders exactly 3 faces; semantic labels present; no hardcoded colors (tokens only, §2.1.4).
-- **Done:** widget test green.
+- **Tests:** widget test — renders exactly 3 faces in sentiment order; one semantic label per face; visible labels; square faces stay ≥88dp on a 320dp phone; size caps at 180dp and honours a TV override; no hardcoded colors (global token guard, §2.1.4).
+- **Done:** tests green.
 
 #### Iteration 19 — Focus + select interaction + double-tap throttle ⬜
 
