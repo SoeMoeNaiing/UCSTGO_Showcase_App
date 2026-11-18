@@ -67,8 +67,8 @@ Visitor taps emoji
 
 - Flutter **3.47.9 stable** / Dart **3.13.7** (matches `pubspec.yaml`).
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
-- **I7–I8 complete:** `EmojiChoice`, `Feedback`, `Rating`, repository contracts, `SyncStatus`, sealed `SubmissionResult` (56 tests).
-- **Next:** Iteration 9 — Drift queue tables + `AppDatabase` (the durable core).
+- **I7–I9 complete:** domain entities, repository contracts, and the Drift queue (`AppDatabase`, both pending tables, UTC-preserving timestamps) — 62 tests.
+- **Next:** Iteration 10 — `FeedbackLocalDataSource` (Drift CRUD + status transitions).
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.
@@ -101,4 +101,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 9:** Drift schema (`pending_feedback` + `pending_ratings`) and `AppDatabase` with an in-memory constructor — the durable local queue that makes everything else offline-safe. See [§10.4 of PROJECT_PROCESS.md](PROJECT_PROCESS.md) for the exact card. 🚀
+**Iteration 10:** `FeedbackLocalDataSource` — insert, pending(limit), status transitions, and retry scheduling on the Drift queue. See [§10.4 of PROJECT_PROCESS.md](PROJECT_PROCESS.md) for the exact card. 🚀

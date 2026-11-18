@@ -691,7 +691,7 @@ Every implementation message follows this exact template:
 - **Tests:** a fake repository implements both interfaces (compile-time contract test); status enum ↔ string mapping is exhaustive.
 - **Done:** pure-Dart tests green.
 
-#### Iteration 9 — Drift schema: queue tables + AppDatabase ⬜
+#### Iteration 9 — Drift schema: queue tables + AppDatabase ✅ (2026-11-18)
 
 - **Build:** `AppDatabase` hosting both queue tables `pending_feedback` and `pending_ratings` (`client_id` PK, payload columns, `sync_status`, `attempts`, `last_attempt_at`, `next_retry_at`, `created_at`), plus an in-memory constructor for tests. No Supabase, no network — this is the durable core the whole app stands on.
 - **Files:** `lib/features/feedback/data/local/app_database.dart`, `lib/features/feedback/data/local/tables/pending_feedback_table.dart`, `pending_ratings_table.dart`.
