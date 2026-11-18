@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -9,21 +11,62 @@ import '../../domain/entities/emoji_choice.dart';
 
 /// The three hand-drawn sentiment faces — PROJECT_PROCESS.md §5.1.
 ///
-/// **Render-only (Iteration 18).** Tap, D-pad focus, double-tap throttling
-/// and the selection animation arrive in Iteration 19; the geometry and
-/// semantics are already final so that iteration only adds behaviour.
-///
-/// Everything is sourced from tokens: the outline from
-/// [AppColors.inkPrimary], each face's marker wash from the accent palette,
-/// spacing from [AppSpacing] and type from [AppTypography]. No raw hex —
-/// §2.1.4, guarded by `test/core/theme/design_tokens_test.dart`.
-class EmojiPicker extends StatelessWidget {
-  const EmojiPicker({super.key, this.maxFaceSize = 180})
-      : assert(maxFaceSize > 0, 'maxFaceSize must be positive');
+/// Interactive since Iteration 19: every face is a focusable button (tap,
+/// Enter/D-pad, arrow traversal) with a hand-drawn focus frame and a single
+/// 2-second selection window shared by all three faces (§7 client throttle).
+/// Geometry and colors still come from tokens only — §2.1.4.
+class EmojiPicker extends StatefulWidget {
+  const EmojiPicker({
+    super.key,
+    required this.onSelected,
+    this.maxFaceSize = 180,
+    this.throttle = const Duration(seconds: 2),
+    this.autofocusFirst = false,
+  })  : assert(maxFaceSize > 0, 'maxFaceSize must be positive'),
+        assert(throttle > Duration.zero, 'throttle must be positive');
+
+  /// Fired once per accepted activation. Activations inside [throttle]
+  /// never reach this callback — the submit path stays single-shot.
+  final ValueChanged<EmojiChoice> onSelected;
 
   /// Upper bound for one face. Phones scale down from here; a 4K TV can
   /// raise it without touching the painter.
   final double maxFaceSize;
+
+  /// §7 client throttle: a second activation inside this window is dropped.
+  final Duration throttle;
+
+  /// Requests focus on the first (happy) face after the first frame.
+  /// Used by the TV pass; I24 decides the phone default.
+  final bool autofocusFirst;
+
+  @override
+  State<EmojiPicker> createState() => _EmojiPickerState();
+}
+
+class _EmojiPickerState extends State<EmojiPicker> {
+  Timer? _throttleTimer;
+
+  bool get _isThrottled => _throttleTimer?.isActive ?? false;
+
+  void _select(EmojiChoice choice) {
+    if (_isThrottled) {
+      return;
+    }
+    // The inactive timer itself is the release signal — no wall clock.
+    _throttleTimer = Timer(widget.throttle, _endThrottle);
+    widget.onSelected(choice);
+  }
+
+  void _endThrottle() {
+    // Intentionally empty: timer inactivity is the release signal.
+  }
+
+  @override
+  void dispose() {
+    _throttleTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,15 +75,22 @@ class EmojiPicker extends StatelessWidget {
         // Each face is a third of the row minus breathing room. The cap
         // keeps 10-foot sizing from turning into a giant on wide screens.
         final raw = (constraints.maxWidth - AppSpacing.lg * 2) / 3;
-        final faceSize =
-            raw.isFinite ? raw.clamp(0.0, maxFaceSize).toDouble() : maxFaceSize;
+        final faceSize = raw.isFinite
+            ? raw.clamp(0.0, widget.maxFaceSize).toDouble()
+            : widget.maxFaceSize;
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (final choice in EmojiChoice.values)
-              EmojiFace(choice: choice, size: faceSize),
+              EmojiFace(
+                choice: choice,
+                size: faceSize,
+                autofocus: widget.autofocusFirst &&
+                    choice == EmojiChoice.values.first,
+                onActivate: () => _select(choice),
+              ),
           ],
         );
       },
@@ -50,14 +100,17 @@ class EmojiPicker extends StatelessWidget {
 
 /// One sketch-outlined sentiment face plus its visible label.
 ///
-/// The whole unit is a single semantic node ("Satisfied", "Neutral",
-/// "Dissatisfied"); the visible text is excluded so a screen reader never
-/// reads the same choice twice.
-class EmojiFace extends StatelessWidget {
+/// A focusable button: tap, Enter/Space/Select or D-pad activate it. Focus
+/// draws an animated rough frame and pops the face; arrow keys move through
+/// Flutter's default directional traversal. The whole unit is a single
+/// semantic node ("Satisfied", …) with a tap action.
+class EmojiFace extends StatefulWidget {
   const EmojiFace({
     super.key,
     required this.choice,
     required this.size,
+    required this.onActivate,
+    this.autofocus = false,
   }) : assert(size > 0, 'size must be positive');
 
   /// Sentiment rendered by this face.
@@ -66,9 +119,19 @@ class EmojiFace extends StatelessWidget {
   /// Width and height of the drawn face (the label sits underneath).
   final double size;
 
+  /// Called for every accepted tap or keyboard activation.
+  final VoidCallback onActivate;
+
+  /// Requests focus after the first frame (first face on TV).
+  final bool autofocus;
+
   /// Stable canvas key so tests can measure the square face itself.
   static Key canvasKeyFor(EmojiChoice choice) =>
       ValueKey('emoji-face-canvas-${choice.wireValue}');
+
+  /// Stable key for the rough focus frame so tests can assert visibility.
+  static Key focusBoxKeyFor(EmojiChoice choice) =>
+      ValueKey('emoji-focus-box-${choice.wireValue}');
 
   /// Spoken label for assistive tech — the domain vocabulary, not the
   /// friendlier visible copy.
@@ -85,62 +148,221 @@ class EmojiFace extends StatelessWidget {
         EmojiChoice.dissatisfied => 'Not great',
       };
 
-  Color get _accent => switch (choice) {
+  @override
+  State<EmojiFace> createState() => _EmojiFaceState();
+}
+
+class _EmojiFaceState extends State<EmojiFace>
+    with SingleTickerProviderStateMixin {
+  late final FocusNode _focusNode =
+      FocusNode(debugLabel: 'emoji-${widget.choice.wireValue}');
+  late final AnimationController _frameController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+  );
+  bool _focused = false;
+
+  Color get _accent => switch (widget.choice) {
         EmojiChoice.satisfied => AppColors.accentSage,
         EmojiChoice.neutral => AppColors.accentSky,
         EmojiChoice.dissatisfied => AppColors.accentBlush,
       };
 
   /// A few degrees of asymmetry make the row feel hand-placed, not stamped.
-  double get _tilt => switch (choice) {
+  double get _tilt => switch (widget.choice) {
         EmojiChoice.satisfied => -0.025,
         EmojiChoice.neutral => 0.015,
         EmojiChoice.dissatisfied => -0.01,
       };
 
   @override
+  void dispose() {
+    _frameController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _activate() {
+    // Touch must leave the same visible focus state as D-pad navigation.
+    _focusNode.requestFocus();
+    widget.onActivate();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final size = widget.size;
+
     return Semantics(
       container: true,
-      label: semanticLabelFor(choice),
-      image: true,
+      button: true,
+      label: EmojiFace.semanticLabelFor(widget.choice),
+      onTap: _activate,
       child: ExcludeSemantics(
-        child: SizedBox(
-          width: size,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox.square(
-                dimension: size,
-                child: Transform.rotate(
-                  angle: _tilt,
-                  child: CustomPaint(
-                    key: canvasKeyFor(choice),
-                    painter: _EmojiFacePainter(
-                      choice: choice,
-                      ink: AppColors.inkPrimary,
-                      accent: _accent,
-                      blush: AppColors.accentBlush,
+        child: FocusableActionDetector(
+          focusNode: _focusNode,
+          autofocus: widget.autofocus,
+          onFocusChange: (hasFocus) {
+            if (!mounted || hasFocus == _focused) {
+              return;
+            }
+            if (hasFocus) {
+              _frameController.forward(from: 0);
+            } else {
+              _frameController.value = 0;
+            }
+            setState(() => _focused = hasFocus);
+          },
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
+          },
+          actions: {
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                _activate();
+                return null;
+              },
+            ),
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _activate,
+            child: SizedBox(
+              width: size,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox.square(
+                    dimension: size,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned.fill(
+                          child: AnimatedScale(
+                            scale: _focused ? 1.06 : 1.0,
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOutBack,
+                            child: Transform.rotate(
+                              angle: _tilt,
+                              child: CustomPaint(
+                                key: EmojiFace.canvasKeyFor(widget.choice),
+                                painter: _EmojiFacePainter(
+                                  choice: widget.choice,
+                                  ink: AppColors.inkPrimary,
+                                  accent: _accent,
+                                  blush: AppColors.accentBlush,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_focused)
+                          Positioned(
+                            left: -size * 0.06,
+                            top: -size * 0.06,
+                            width: size * 1.12,
+                            height: size * 1.12,
+                            child: IgnorePointer(
+                              child: CustomPaint(
+                                key: EmojiFace.focusBoxKeyFor(widget.choice),
+                                painter: _FocusFramePainter(
+                                  progress: _frameController,
+                                  color: AppColors.accentWarm,
+                                  strokeWidth: math.max(2.0, size * 0.016),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
+                    EmojiFace.visibleLabelFor(widget.choice),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.inkSecondary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                visibleLabelFor(choice),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.body.copyWith(
-                  color: AppColors.inkSecondary,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// Draws the focus frame as two jittered pencil passes that "write"
+/// themselves in as [progress] runs from 0 to 1.
+///
+/// Deliberately in-house: `rough_notation`'s autoplay timer calls
+/// `AnimationController.forward()` after dispose when focus moves quickly,
+/// which is a real race on a D-pad. This painter owns no timers — a single
+/// `AnimationController` in the face state drives it.
+class _FocusFramePainter extends CustomPainter {
+  _FocusFramePainter({
+    required this.progress,
+    required this.color,
+    required this.strokeWidth,
+  }) : super(repaint: progress);
+
+  final Animation<double> progress;
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = progress.value;
+    if (t <= 0) {
+      return;
+    }
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // Two passes, different jitter — a box drawn twice by hand.
+    for (final seed in const [7, 23]) {
+      final path = _jitteredRect(size, seed);
+      for (final metric in path.computeMetrics()) {
+        canvas.drawPath(metric.extractPath(0, metric.length * t), paint);
+      }
+    }
+  }
+
+  Path _jitteredRect(Size size, int seed) {
+    final random = math.Random(seed);
+    Offset corner(double x, double y) => Offset(
+          x + random.nextDouble() * 5 - 2.5,
+          y + random.nextDouble() * 5 - 2.5,
+        );
+
+    final topLeft = corner(0, 0);
+    final topRight = corner(size.width, 0);
+    final bottomRight = corner(size.width, size.height);
+    final bottomLeft = corner(0, size.height);
+
+    return Path()
+      ..moveTo(topLeft.dx, topLeft.dy)
+      ..lineTo(topRight.dx, topRight.dy)
+      ..lineTo(bottomRight.dx, bottomRight.dy)
+      ..lineTo(bottomLeft.dx, bottomLeft.dy)
+      ..close();
+  }
+
+  @override
+  bool shouldRepaint(covariant _FocusFramePainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.strokeWidth != strokeWidth;
 }
 
 /// Paints one face as three or four wobbly ink strokes on paper.

@@ -605,7 +605,8 @@ Every implementation message follows this exact template:
 | 13 | — (custom service; injectable clock) | pub: `shared_preferences` already added at I12 |
 | 14 | `connectivity_plus` | pub |
 | 15 | dev: `mocktail` | pub |
-| 19 | `flutter_animate`, `rough_notation` | pub (focus + entrance motion) |
+| 19 | — (built-in `AnimatedScale` + in-house focus-frame painter) | none |
+| 22 | `flutter_animate` | pub (thank-you entrance motion) |
 | 24 | `go_router` | pub (screen wiring) |
 | 25 | `fancy_rating_bar` (evaluate), `sketchify` (optional) | pub (keep only if sketch look holds) |
 | 30 | `rive`, `lottie` (light loops) + `assets/rive/` | pub + asset |
@@ -789,12 +790,13 @@ Every implementation message follows this exact template:
 - **Tests:** widget test — renders exactly 3 faces in sentiment order; one semantic label per face; visible labels; square faces stay ≥88dp on a 320dp phone; size caps at 180dp and honours a TV override; no hardcoded colors (global token guard, §2.1.4).
 - **Done:** tests green.
 
-#### Iteration 19 — Focus + select interaction + double-tap throttle ⬜
+#### Iteration 19 — Focus + select interaction + double-tap throttle ✅ (2026-11-18)
 
 - **Build:** wrap each face in `FocusableActionDetector` (tap **and** D-pad activate), visible focus state (scale + `rough_notation` highlight box), 2s throttle ignoring double-taps (§7 client throttle).
+- **Decision:** the focus frame is an **in-house `_FocusFramePainter`** — two jittered pencil passes drawn progressively via `PathMetric.extractPath` over 400ms — overlaid in an **unclipped `Stack`** 6% beyond the face, so focus appearing/disappearing never shifts layout; the face pops with built-in `AnimatedScale` (1→1.06, 180ms, `easeOutBack`). The planned deps are dropped/deferred after test-proving their problems: `rough_notation` 0.0.3 autoplay uses a zero-delay timer that calls `AnimationController.forward()` **after dispose** when focus moves quickly, and `flutter_animate` schedules a zero-delay timer in `initState` that leaves every widget test with a pending timer unless it ends in `pumpAndSettle`; neither is justified for a boolean focus scale. `flutter_animate` moves to I22 where entrance choreography actually begins. The 2s throttle is a `Timer` gate inside `EmojiPicker`, **global across all three faces** (the picker is a one-shot action; one selection per window), and is a different layer from the 30s `CooldownService` (§7 layers 1 and 2). `throttle` is injectable for tests. Activation: touch tap requests focus then calls back; Enter / numpad Enter / Space / Select / GameButtonA map to `ActivateIntent`; arrow traversal relies on Flutter's default directional focus (no custom traversal code). `autofocusFirst` is available for I24 and TV. Each face remains one semantic button node with an `onTap` action.
 - **Files:** same widget + focus styling.
-- **Tests:** tap fires the callback **once** on double-tap; arrow traversal focuses next/prev; activate/Enter key selects; focus state visibly changes.
-- **Deps:** `flutter_animate`, `rough_notation`.
+- **Tests:** tap fires the callback **once** on double-tap; a different face is also ignored inside the window; tap after 2s fires again; arrow traversal focuses next/prev; activate/Enter key selects; focus box appears/disappears; semantics is a button with a tap action.
+- **Deps:** none — built-ins only (see Decision).
 - **Done:** widget tests green.
 
 #### Iteration 20 — FeedbackController (Riverpod notifier) ⬜

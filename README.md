@@ -69,8 +69,8 @@ Visitor taps emoji
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
 - **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
 - **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
-- **Phase 3 started:** static `EmojiPicker` — three hand-drawn faces (`CustomPainter`, adaptive size, one semantic node each) — **155 tests**.
-- **Next:** Iteration 19 — focus + select interaction + 2s double-tap throttle.
+- **Phase 3 started:** `EmojiPicker` — three hand-drawn faces, now interactive: tap/Enter/D-pad activation, arrow traversal, a self-drawing rough focus frame, and a 2s double-tap throttle — **163 tests**.
+- **Next:** Iteration 20 — `FeedbackController` state machine (`idle → selecting → submitting → success | cooldown | error`).
 - **Phone preview:** `flutter run` still shows the temporary counter screen. The first real screen lands at **Iteration 24** (`FeedbackScreen`); rating at **I29**; polished offline release APK at **I33**.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
@@ -104,4 +104,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 19:** focus + select — tap **and** D-pad activation, unmistakable focus state, 2s double-tap throttle. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 20:** `FeedbackController` — the pure state machine behind the screen (`idle → selecting → submitting → success | cooldown | error`), tested without any `BuildContext`. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
