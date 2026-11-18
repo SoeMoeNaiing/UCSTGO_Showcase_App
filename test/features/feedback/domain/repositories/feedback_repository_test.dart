@@ -3,6 +3,7 @@ import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/feedback.dart';
+import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/queued_feedback.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/repositories/feedback_repository.dart';
 
 /// Minimal in-memory implementation proving the interface is *implementable*
@@ -19,8 +20,13 @@ class _FakeFeedbackRepository implements FeedbackRepository {
   }
 
   @override
-  Future<List<Feedback>> pending({int limit = 50}) async =>
-      queued.take(limit).toList();
+  Future<List<QueuedFeedback>> pending({int limit = 50}) async => queued
+      .take(limit)
+      .map((feedback) => QueuedFeedback(feedback: feedback, attempts: 0))
+      .toList();
+
+  @override
+  Stream<int> watchPendingCount() => Stream.value(queued.length);
 
   @override
   Future<void> applySyncStatus(
@@ -52,7 +58,8 @@ void main() {
 
     final pending = await repository.pending();
     expect(pending, hasLength(1));
-    expect(pending.single, feedback);
+    expect(pending.single.feedback, feedback);
+    expect(await repository.watchPendingCount().first, 1);
 
     await repository.applySyncStatus(
       feedback.clientId,

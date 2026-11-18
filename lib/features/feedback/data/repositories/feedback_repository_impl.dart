@@ -1,6 +1,7 @@
 import '../../../../core/domain/submission_result.dart';
 import '../../../../core/domain/sync_status.dart';
 import '../../domain/entities/feedback.dart';
+import '../../domain/entities/queued_feedback.dart';
 import '../../domain/repositories/feedback_repository.dart';
 import '../datasources/feedback_local_datasource.dart';
 import '../datasources/feedback_remote_datasource.dart';
@@ -74,8 +75,11 @@ class FeedbackRepositoryImpl implements FeedbackRepository {
   }
 
   @override
-  Future<List<Feedback>> pending({int limit = 50}) =>
+  Future<List<QueuedFeedback>> pending({int limit = 50}) =>
       local.pending(limit: limit);
+
+  @override
+  Stream<int> watchPendingCount() => local.watchPendingCount();
 
   @override
   Future<void> applySyncStatus(

@@ -222,7 +222,7 @@ void main() {
       expect((await row('client-1')).attempts, 1);
 
       now = retryAt;
-      expect((await repository.pending()).single.clientId, 'client-1');
+      expect((await repository.pending()).single.feedback.clientId, 'client-1');
     });
 
     test('applySyncStatus delegates terminal states', () async {
@@ -304,6 +304,25 @@ void main() {
       );
       expect(storage.writes, 1, reason: 'generated exactly once');
       expect(remote.calls.single.deviceId, deviceId);
+    });
+
+    test('watchPendingCount follows the live pending total', () async {
+      online = false;
+      await repository.submit(build(client: 'a'));
+      await repository.submit(
+        build(client: 'b', at: now.add(const Duration(minutes: 1))),
+      );
+
+      final counts = <int>[];
+      final subscription = repository.watchPendingCount().listen(counts.add);
+      addTearDown(subscription.cancel);
+
+      await pumpEventQueue();
+      expect(counts.last, 2);
+
+      await repository.applySyncStatus('a', SyncStatus.synced);
+      await pumpEventQueue();
+      expect(counts.last, 1);
     });
   });
 }

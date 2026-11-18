@@ -756,11 +756,12 @@ Every implementation message follows this exact template:
 - **Deps:** dev: `mocktail`.
 - **Done:** tests green.
 
-#### Iteration 16 — SyncService: drain, outcomes, backoff ⬜
+#### Iteration 16 — SyncService: drain, outcomes, backoff ✅ (2026-11-18)
 
-- **Build:** drains the pending queue serially (low-end friendly, one item at a time) via `FeedbackRepository.pending()` / `applySyncStatus()`: per item → submit → map §6.6 outcome (200/409 → `synced` + delete, 429 → `rejected`, 400 → `failed_permanent`, network/5xx → retry); exponential backoff **2 → 4 → 8 → 16 → 32 → 60s**, max 6 attempts then `failed_permanent`; overlap guard; `syncAll()` + `pendingCount` stream. Queue interface: feedback implements now, rating plugs in at Iteration 28.
-- **Files:** `lib/services/sync_service.dart`.
-- **Tests:** full outcome matrix with fake repository/remote; backoff schedule asserted with fake clock; attempt cap reached; two concurrent `syncAll()` calls coalesce; empty queue = no-op.
+- **Build:** drains the pending queue serially (low-end friendly, one item at a time) via `FeedbackRepository.pending()` / `applySyncStatus()`: per item → submit → map §6.6 outcome (200/409 → `synced` + delete, 429 → `rejected`, 400 → `failed_permanent`, network/5xx → retry); exponential backoff **2 → 4 → 8 → 16 → 32 → 60s**, max 6 retries then `failed_permanent`; overlap guard; `syncAll()` + `pendingCount` stream. Queue interface: feedback implements now, rating plugs in at Iteration 28.
+- **Decision:** `pending()` returns `QueuedFeedback(feedback, attempts)` (not the bare entity) so the backoff step is read from the durable row and survives restarts. The queue also gains `watchPendingCount()` for the UI. §13's six-step schedule governs: **six retries** (initial upload + 6 retries) before `failed_permanent`; the earlier card wording "6 attempts" was off by one and is corrected here.
+- **Files:** `lib/services/sync_service.dart`, `lib/features/feedback/domain/entities/queued_feedback.dart`, `lib/features/feedback/data/datasources/feedback_local_datasource.dart`, `lib/features/feedback/domain/repositories/feedback_repository.dart`, `lib/features/feedback/data/repositories/feedback_repository_impl.dart`.
+- **Tests:** full outcome matrix with fake repository/remote; backoff schedule asserted with fake clock; six-retry cap then terminal; serial FIFO drain; two concurrent `syncAll()` calls coalesce; batch loop; throwing remote → retry; empty queue = no-op; `pendingCount` forwards live counts.
 - **Done:** tests green.
 
 #### Iteration 17 — Sync triggers wired ⬜

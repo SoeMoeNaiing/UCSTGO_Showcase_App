@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../../../core/domain/sync_status.dart';
 import '../../domain/entities/emoji_choice.dart';
 import '../../domain/entities/feedback.dart';
+import '../../domain/entities/queued_feedback.dart';
 import '../local/app_database.dart';
 
 /// Typed CRUD over the durable feedback queue — PROJECT_PROCESS.md §6.4, §6.6.
@@ -42,7 +43,7 @@ class FeedbackLocalDataSource {
   /// Retry-deadline filtering happens in Dart on purpose — comparing
   /// ISO-8601 text in SQLite is not reliably chronological for
   /// sub-millisecond timestamps, and DateTime comparison here is exact.
-  Future<List<Feedback>> pending({int limit = 50}) async {
+  Future<List<QueuedFeedback>> pending({int limit = 50}) async {
     assert(limit > 0, 'limit must be positive');
 
     final rows = await (_db.select(_db.pendingFeedback)
@@ -62,7 +63,20 @@ class FeedbackLocalDataSource {
         return byTime != 0 ? byTime : a.clientId.compareTo(b.clientId);
       });
 
-    return due.take(limit).map(_toEntity).toList();
+    return due.take(limit).map(_toQueued).toList();
+  }
+
+  /// Live count of rows still awaiting upload — includes rows waiting for
+  /// their backoff deadline, unlike [pending].
+  Stream<int> watchPendingCount() {
+    final count = _db.pendingFeedback.clientId.count();
+    final query = _db.selectOnly(_db.pendingFeedback)
+      ..addColumns([count])
+      ..where(
+        _db.pendingFeedback.syncStatus.equals(SyncStatus.pending.wireValue),
+      );
+
+    return query.map((row) => row.read(count) ?? 0).watchSingle();
   }
 
   /// Terminal success (200 or replay 409) — §6.6.
@@ -80,7 +94,7 @@ class FeedbackLocalDataSource {
   /// Records a failed attempt and blocks retries until [nextRetryAt].
   ///
   /// Increments [PendingFeedback.attempts] so the backoff policy in
-  /// Iteration 16 can cap at six attempts.
+  /// Iteration 16 can cap at six retries.
   Future<void> scheduleRetry(String clientId, DateTime nextRetryAt) async {
     final row = await (_db.select(_db.pendingFeedback)
           ..where((table) => table.clientId.equals(clientId)))
@@ -114,6 +128,11 @@ class FeedbackLocalDataSource {
       ),
     );
   }
+
+  QueuedFeedback _toQueued(PendingFeedbackData row) => QueuedFeedback(
+        feedback: _toEntity(row),
+        attempts: row.attempts,
+      );
 
   Feedback _toEntity(PendingFeedbackData row) {
     return Feedback(

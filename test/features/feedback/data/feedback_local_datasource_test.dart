@@ -53,8 +53,9 @@ void main() {
 
       final pending = await local.pending();
       expect(pending, hasLength(1));
-      expect(pending.single, feedback);
-      expect(pending.single.createdAt.isUtc, isTrue);
+      expect(pending.single.feedback, feedback);
+      expect(pending.single.attempts, 0);
+      expect(pending.single.feedback.createdAt.isUtc, isTrue);
 
       final stored = await row('client-1');
       expect(stored.syncStatus, SyncStatus.pending.wireValue);
@@ -68,7 +69,10 @@ void main() {
 
       final oldestTwo = await local.pending(limit: 2);
 
-      expect(oldestTwo.map((feedback) => feedback.clientId), ['first', 'second']);
+      expect(
+        oldestTwo.map((row) => row.feedback.clientId),
+        ['first', 'second'],
+      );
     });
 
     test('markSynced removes the row from pending but keeps it', () async {
@@ -125,7 +129,7 @@ void main() {
       expect(await local.pending(), isEmpty);
 
       now = retryAt;
-      expect((await local.pending()).single.clientId, 'client-1');
+      expect((await local.pending()).single.feedback.clientId, 'client-1');
     });
 
     test('each retry increments attempts', () async {
