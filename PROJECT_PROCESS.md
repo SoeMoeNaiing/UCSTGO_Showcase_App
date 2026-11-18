@@ -657,7 +657,7 @@ Every implementation message follows this exact template:
 **Exit gate:** repository tests cover online / offline / remote-throws / 429 / 409; schema live with `client_id UNIQUE`; data-layer coverage ≥ 80% (§8.3).
 **Deliverables:** entities, repository contracts, `AppDatabase`, local + remote datasources, `FeedbackRepositoryImpl`, Supabase SQL.
 
-#### Iteration 7 — EmojiChoice enum + Feedback entity with clientId ⬜
+#### Iteration 7 — EmojiChoice enum + Feedback entity with clientId ✅ (2026-11-18)
 
 - **Build:** `EmojiChoice` enum (`satisfied` / `neutral` / `dissatisfied`, `toJson`/`fromJson`, unknown → `FormatException`), `Feedback` entity (`clientId`, `deviceId`, `emojiChoice`, `createdAt`) — pure Dart, no Flutter.
 - **Files:** `lib/features/feedback/domain/entities/emoji_choice.dart`, `feedback.dart`.
