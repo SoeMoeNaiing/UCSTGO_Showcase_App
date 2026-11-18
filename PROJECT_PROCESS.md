@@ -169,6 +169,9 @@ showcase_app/                         # in this repo: ucstgo_showcase_flutter_ap
 │   ├── app.dart                      # Root widget, router wiring
 │   │
 │   ├── core/                         # Shared across features
+│   │   ├── domain/                   # Shared pure-Dart contracts
+│   │   │   ├── sync_status.dart      # pending/synced/rejected/failed_permanent
+│   │   │   └── submission_result.dart # local-first submit outcome
 │   │   ├── theme/
 │   │   │   ├── app_colors.dart       # Color tokens
 │   │   │   ├── app_typography.dart   # Text style tokens
@@ -664,7 +667,7 @@ Every implementation message follows this exact template:
 - **Tests:** serialization round-trip for all 3 values; invalid string throws; entity requires `clientId` (non-null) and compares by value.
 - **Done:** tests green; grep: no Flutter/Supabase import in `domain/` (§4.2 rule of thumb).
 
-#### Iteration 8 — Repository interfaces + Rating entity + result types ⬜
+#### Iteration 8 — Repository interfaces + Rating entity + result types ✅ (2026-11-18)
 
 - **Build:** abstract `FeedbackRepository` and `RatingRepository`; `Rating` entity (`clientId`, `deviceId`, `projectId`, `score` 1–5, `createdAt`); `SubmissionResult` / `SyncOutcome` value types covering the §6.6 status vocabulary.
 - **Files:** `lib/features/feedback/domain/repositories/feedback_repository.dart`, `lib/features/rating/domain/entities/rating.dart`, `lib/features/rating/domain/repositories/rating_repository.dart`, shared result type under `domain/`.

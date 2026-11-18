@@ -27,7 +27,7 @@ void main() {
   ];
 
   /// Shared core directories (§4.1).
-  const coreDirs = ['theme', 'router', 'widgets', 'utils'];
+  const coreDirs = ['domain', 'theme', 'router', 'widgets', 'utils'];
 
   /// The complete canonical lib/ tree, derived from the lists above.
   final canonicalLibDirs = <String>[
@@ -56,8 +56,8 @@ void main() {
         isEmpty,
         reason: 'Missing canonical lib/ directories: $missing',
       );
-      // 4 core + 1 services + (3 features x 11 layers) = 38 directories.
-      expect(canonicalLibDirs, hasLength(38));
+      // 5 core + 1 services + (3 features x 11 layers) = 39 directories.
+      expect(canonicalLibDirs, hasLength(39));
     });
 
     test('test/ mirrors lib/ by layer (§4.3)', () {
@@ -69,8 +69,8 @@ void main() {
         isEmpty,
         reason: 'Missing test mirror directories: $missing',
       );
-      // 4 core + 1 services + (3 features x 3 layers) = 14 directories.
-      expect(canonicalTestDirs, hasLength(14));
+      // 5 core + 1 services + (3 features x 3 layers) = 15 directories.
+      expect(canonicalTestDirs, hasLength(15));
     });
 
     test('process docs and tool configs are present at repo root', () {
