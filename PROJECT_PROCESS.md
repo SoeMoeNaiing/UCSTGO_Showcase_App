@@ -634,7 +634,7 @@ Every implementation message follows this exact template:
 - **Deps:** `google_fonts`.
 - **Done:** tests green; grep confirms no `0xFF` outside `app_colors.dart`.
 
-#### Iteration 5 — AppTheme composition ⬜
+#### Iteration 5 — AppTheme composition ✅ (2026-11-18)
 
 - **Build:** compose `ThemeData` from tokens — `colorScheme`, `scaffoldBackgroundColor = paperBackground`, card theme, base `TextTheme`. One place, no hardcoded values (§2.1.4).
 - **Files:** `lib/core/theme/app_theme.dart`.
@@ -979,6 +979,7 @@ Every implementation message follows this exact template:
 | Low-end TV jank (<60fps) | Poor showcase impression | Capped particles, Rive fallback, token sizes, early perf spot-checks | 35, 42 |
 | Focus traps on TV | Kiosk unusable | Focus audit + traversal tests per screen | 40, 43 |
 | Rive asset fails to load | Broken visuals | Painter fallback behind injectable animation backend | 35 |
+| Runtime font fetch fails offline | Fallback font at the kiosk | Bundle the Patrick Hand TTF as an asset before deployment (google_fonts asset mode) | 5, 44 |
 | Secrets leakage (keys, keystore) | Security | `--dart-define` + gitignore rules | 2, 10, 44 |
 | Drift codegen forgotten after table change | Build breaks | Codegen command baked into I11 + regenerate on any schema edit | 11 |
 
@@ -1089,7 +1090,7 @@ These are defaults we'll follow unless told otherwise.
 |---|---|---|
 | Supabase account | You'll create one at Iteration 9 | — |
 | Signing key for release APK | Self-signed for internal testing | 44 |
-| Font family | Caveat or Patrick Hand via `google_fonts` | 4 |
+| Font family | Patrick Hand via `google_fonts` (locked at Iteration 4) | 4 |
 | Cooldown duration | 30 seconds | 16 |
 | Idle timeout before attract mode | 20 seconds | 36 |
 | Supported Android versions | Android 8.0 (API 26)+ | 39 |
