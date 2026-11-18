@@ -71,7 +71,7 @@ Visitor taps emoji
 - **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
 - **Phase 3 started:** `EmojiPicker` — three hand-drawn faces, now interactive: tap/Enter/D-pad activation, arrow traversal, a self-drawing rough focus frame, and a 2s double-tap throttle — **163 tests**.
 - **Next:** Iteration 20 — `FeedbackController` state machine (`idle → selecting → submitting → success | cooldown | error`).
-- **Phone preview:** `flutter run` still shows the temporary counter screen. The first real screen lands at **Iteration 24** (`FeedbackScreen`); rating at **I29**; polished offline release APK at **I33**.
+- **Phone preview:** `flutter run` now boots the **temporary interactive picker harness** — tap, Enter/D-pad, focus frame, and the 2s throttle work on the device. The full `FeedbackScreen` lands at **Iteration 24**; rating at **I29**; polished offline release APK at **I33**.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.

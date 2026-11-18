@@ -799,6 +799,8 @@ Every implementation message follows this exact template:
 - **Deps:** none — built-ins only (see Decision).
 - **Done:** widget tests green.
 
+> **Temporary preview checkpoint (2026-11-18 → deleted at I24):** `main.dart` boots into a throwaway `FeedbackPreviewScreen` (`KioskScaffold` + title + `EmojiPicker` + a "You picked" echo) so the interactive picker can be seen on a phone with `flutter run` immediately. Deliberately not the real flow: no repository, no controller, no router, nothing persisted. I24 replaces it with the real `FeedbackScreen` and deletes the file; the default counter screen is retired.
+
 #### Iteration 20 — FeedbackController (Riverpod notifier) ⬜
 
 - **Build:** state machine `idle → selecting → submitting → success | cooldown | error`, with the submitter injected (fake first — wiring lands in Iteration 21).
@@ -830,7 +832,7 @@ Every implementation message follows this exact template:
 #### Iteration 24 — Full FeedbackScreen assembly + E2E widget test ⬜
 
 - **Build:** screen state machine (picker → success → thank-you → prompt → cooldown slot); `/feedback` route registered in `go_router`; all providers overridden in tests with a fake repository.
-- **Files:** `lib/features/feedback/presentation/screens/feedback_screen.dart`, `lib/core/router/app_router.dart`, `lib/app.dart`.
+- **Files:** `lib/features/feedback/presentation/screens/feedback_screen.dart`, `lib/core/router/app_router.dart`, `lib/app.dart`. **Cleanup:** delete the temporary `feedback_preview_screen.dart` from the I19 preview checkpoint and point `main.dart` at the real router.
 - **Tests:** E2E widget test — tap emoji → submit called → thank-you appears → prompt appears → Skip returns to picker; initial focus lands on the first face.
 - **Deps:** `go_router`.
 - **Done:** widget tests green → **M4**.
