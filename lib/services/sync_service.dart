@@ -5,6 +5,12 @@ import '../features/feedback/domain/entities/feedback.dart';
 import '../features/feedback/domain/entities/queued_feedback.dart';
 import '../features/feedback/domain/repositories/feedback_repository.dart';
 
+/// The scheduler's view of the sync engine.
+abstract interface class SyncRunner {
+  /// Drains every due row; concurrent calls coalesce in the implementation.
+  Future<void> syncAll();
+}
+
 /// Drains the durable queue through the tested remote seam — §6.4/§6.6/§13.
 ///
 /// Design rules:
@@ -16,7 +22,7 @@ import '../features/feedback/domain/repositories/feedback_repository.dart';
 ///   triggers landing together (Iteration 17) cannot stampede.
 /// - **Durable backoff:** the attempt count comes from the row, not memory,
 ///   so killing the app does not reset the retry ladder.
-class SyncService {
+class SyncService implements SyncRunner {
   SyncService({
     required this.queue,
     required this.remote,
@@ -57,6 +63,7 @@ class SyncService {
   ///
   /// Concurrent calls share the same in-flight run; the next call after it
   /// completes starts a fresh sweep.
+  @override
   Future<void> syncAll() {
     return _inFlight ??= _drain().whenComplete(() => _inFlight = null);
   }

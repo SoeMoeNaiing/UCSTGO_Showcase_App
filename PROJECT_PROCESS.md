@@ -716,12 +716,14 @@ Every implementation message follows this exact template:
 - **Tests:** `test/features/feedback/data/feedback_repository_impl_test.dart` — 5 paths with fakes: remote success → `synced`; remote throws → row stays `pending` **and** result still success (Patch D rule); remote 429 → `rejected`; replay 409 → `synced`; offline → `verifyNever(remote.submit)` called.
 - **Done:** all 5 paths green → **M2**.
 
-### 10.5 Phase 2 — Offline Sync & Guardrails (Iterations 12–17)
+### 10.5 Phase 2 — Offline Sync & Guardrails (Iterations 12–17) ✅
 
 **Goal:** identity + cooldown + connectivity + a **fake-provable** sync engine + automatic triggers, so the queue self-heals without any backend attached.
 **Entry gate:** M2 confirmed.
 **Exit gate:** SyncService outcome matrix + backoff tested with fake clock; triggers coalesce correctly; the offline build never needs a network.
 **Deliverables:** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` + remote contract, `SyncService`, `SyncScheduler`.
+
+**Milestone M3 reached ✅ (2026-11-18):** 149/149 tests green, `flutter analyze` clean. Identity, 30s cooldown, captive-portal-safe online detection, the exact §6.2 wire payload, the §6.6 outcome matrix with durable 2→60s backoff, and all four sync triggers are proven with fakes — still **zero network required**. The queue now heals itself automatically the moment a backend is attached.
 
 #### Iteration 12 — DeviceIdService ✅ (2026-11-18)
 
@@ -764,11 +766,12 @@ Every implementation message follows this exact template:
 - **Tests:** full outcome matrix with fake repository/remote; backoff schedule asserted with fake clock; six-retry cap then terminal; serial FIFO drain; two concurrent `syncAll()` calls coalesce; batch loop; throwing remote → retry; empty queue = no-op; `pendingCount` forwards live counts.
 - **Done:** tests green.
 
-#### Iteration 17 — Sync triggers wired ⬜
+#### Iteration 17 — Sync triggers wired ✅ (2026-11-18)
 
 - **Build:** `SyncScheduler` with four triggers: (1) app start, (2) ConnectivityService rising edge, (3) 5-minute periodic timer, (4) post-write nudge (~1s after each local save) — all debounced/coalesced into a single `syncAll()` (§6.4). With no backend the sweep is a harmless no-op; with Supabase attached in Phase 6 the identical scheduler goes live.
-- **Files:** `lib/services/sync_scheduler.dart` (or extend `sync_service.dart`).
-- **Tests:** each trigger → exactly one sync; concurrent triggers coalesce; no sync attempt while offline; periodic timer ticks correctly under `fakeAsync`.
+- **Decision:** the scheduler depends on two narrow seams — `SyncRunner` (implemented by `SyncService`) and `ConnectivityStatus` (implemented by `ConnectivityService`) — so every trigger is fake-testable without the provider graph. App start calls `connectivity.start()` (one probe, one link subscription) and sweeps only when online; rising edges re-sweep; periodic ticks trust `isOnline` rather than probing every 5 minutes; `notifyLocalWrite()` debounces nudges and is wired to the repository at I21, when the provider graph exists.
+- **Files:** `lib/services/sync_scheduler.dart`, `lib/services/sync_service.dart` (`SyncRunner`), `lib/services/connectivity_service.dart` (`ConnectivityStatus`).
+- **Tests:** each trigger → exactly one sync; concurrent triggers coalesce; no sync attempt while offline; periodic timer ticks correctly under `fakeAsync`; nudge debounce; dispose stops all triggers.
 - **Done:** tests green → **M3**.
 
 ### 10.6 Phase 3 — Feedback Flow UI (Iterations 18–24)

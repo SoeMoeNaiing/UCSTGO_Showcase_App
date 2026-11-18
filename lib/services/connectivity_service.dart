@@ -96,6 +96,20 @@ class HttpReachabilityProbe implements ReachabilityProbe {
   void dispose() => _client.close(force: true);
 }
 
+/// The slice of connectivity the sync scheduler depends on.
+///
+/// Kept narrow so trigger tests can fake it without a link source or probe.
+abstract interface class ConnectivityStatus {
+  /// Last known answer; `false` until [start] runs.
+  bool get isOnline;
+
+  /// Change-only stream of online/offline edges.
+  Stream<bool> get online;
+
+  /// Subscribes to link changes, probes once, and returns the result.
+  Future<bool> start();
+}
+
 /// Combines link state and reachability into one trusted `online` signal.
 ///
 /// Rules (§6.7):
@@ -104,7 +118,7 @@ class HttpReachabilityProbe implements ReachabilityProbe {
 /// - Link change → probe again; a rising edge is what unblocks the queue.
 /// - Concurrent [checkNow] calls share one in-flight check, so a burst of
 ///   triggers cannot stampede the network.
-class ConnectivityService {
+class ConnectivityService implements ConnectivityStatus {
   ConnectivityService({
     required this.link,
     required this.probe,
@@ -122,16 +136,19 @@ class ConnectivityService {
   bool _disposed = false;
 
   /// Last known answer. Starts `false` until [start] or [checkNow] runs.
+  @override
   bool get isOnline => _online;
 
   /// Emits only on **changes** (rising and falling edges), never replays.
   /// Pair it with [isOnline] for the current value.
+  @override
   Stream<bool> get online => _onlineController.stream;
 
   /// Begins observing link changes and performs the first check.
   ///
   /// Idempotent: calling it twice keeps one subscription and coalesces the
   /// checks.
+  @override
   Future<bool> start() {
     if (_disposed) {
       return Future.value(false);
