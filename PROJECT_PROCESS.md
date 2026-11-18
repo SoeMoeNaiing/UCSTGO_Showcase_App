@@ -723,7 +723,7 @@ Every implementation message follows this exact template:
 **Exit gate:** SyncService outcome matrix + backoff tested with fake clock; triggers coalesce correctly; the offline build never needs a network.
 **Deliverables:** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` + remote contract, `SyncService`, `SyncScheduler`.
 
-#### Iteration 12 — DeviceIdService ⬜
+#### Iteration 12 — DeviceIdService ✅ (2026-11-18)
 
 - **Build:** generate UUID v4 on first launch, persist in `shared_preferences`, stable for the device's lifetime; storage injected so tests can fake it.
 - **Files:** `lib/services/device_id_service.dart`.
