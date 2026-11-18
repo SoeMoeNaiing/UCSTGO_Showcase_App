@@ -67,8 +67,8 @@ Visitor taps emoji
 
 - Flutter **3.47.9 stable** / Dart **3.13.7** (matches `pubspec.yaml`).
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
-- **I7–I10 complete:** domain entities, repository contracts, Drift queue, and the typed queue CRUD (69 tests).
-- **Next:** Iteration 11 — `FeedbackRepositoryImpl` (local-first orchestration, the last step to **M2**).
+- **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
+- **Next:** Iteration 12 — `DeviceIdService` (Phase 2: Offline Sync & Guardrails).
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.
@@ -101,4 +101,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 11:** `FeedbackRepositoryImpl` — durable local write first, best-effort remote through the unplugged seam, all five §6.6 outcomes. This closes milestone **M2** (offline-durable pipeline). See [§10.4 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 12:** `DeviceIdService` — a stable anonymous UUID persisted once, injected storage for tests. Phase 2 begins (identity, cooldown, connectivity, sync engine). See [§10.5 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀

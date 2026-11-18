@@ -670,12 +670,14 @@ Every implementation message follows this exact template:
 - **Tests:** `test/core/widgets/kiosk_scaffold_test.dart` — renders child, background token applied, painter paints without exception.
 - **Done:** widget test green → **M1**.
 
-### 10.4 Phase 1 — Domain & Local Persistence (Iterations 7–11)
+### 10.4 Phase 1 — Domain & Local Persistence (Iterations 7–11) ✅
 
 **Goal:** an offline-durable feedback pipeline with **no network at all**: pure domain entities → Drift queue → local datasource → local-first repository (with a remote seam that stays unplugged until Phase 6).
 **Entry gate:** M1 confirmed.
 **Exit gate:** repository tests derive all §6.6 outcomes against a fake remote; duplicate `client_id` rejected by the database; the app accepts and durably stores submissions with zero backend configured.
 **Deliverables:** entities + contracts (done), `AppDatabase`, `FeedbackLocalDataSource`, `FeedbackRepositoryImpl`.
+
+**Milestone M2 reached ✅ (2026-11-18):** 80/80 tests green, `flutter analyze` clean. Submissions are durable in Drift before any network call, and all five §6.6 outcomes are proven with a fake remote — the pipeline works with **no backend configured**.
 
 #### Iteration 7 — EmojiChoice enum + Feedback entity with clientId ✅ (2026-11-18)
 
@@ -707,7 +709,7 @@ Every implementation message follows this exact template:
 - **Tests:** `test/features/feedback/data/feedback_local_datasource_test.dart` with in-memory DB — insert→appears in `pending()`; `markSynced` removes it from pending; retry timestamp respected; all status transitions exhaustive.
 - **Done:** tests green.
 
-#### Iteration 11 — FeedbackRepositoryImpl: local-first orchestration ⬜
+#### Iteration 11 — FeedbackRepositoryImpl: local-first orchestration ✅ (2026-11-18)
 
 - **Build:** `submit()` → write to Drift (`pending`) → attempt remote **only if a remote is configured and `isOnline()` is true** → apply the outcome to the row → **return success to the caller regardless** (remote errors swallowed + logged). Declares the injected `FeedbackRemoteDataSource` seam (one method returning a typed `RemoteOutcome`) and wires `UnavailableFeedbackRemoteDataSource` (always `networkFailure`) so the queue simply accumulates in Phases 1–5. `pending()` + `applySyncStatus()` expose the queue for the sync engine (Iteration 16). No UI or Supabase dependency.
 - **Files:** `lib/features/feedback/data/repositories/feedback_repository_impl.dart`.
