@@ -603,6 +603,8 @@ Every implementation message follows this exact template:
 **Exit gate:** `flutter analyze` clean; token + theme + scaffold tests green; initial commit pushed.
 **Deliverables:** repo + canonical folder tree, design tokens, `AppTheme`, `KioskScaffold`.
 
+**Milestone M1 reached ✅ (2026-11-18):** 26/26 tests green, `flutter analyze` clean, theme applied to the running app shell, shared kiosk surface ready for feature screens.
+
 #### Iteration 1 — Environment baseline + folder scaffold + structure test ✅ (2026-11-17)
 
 - **Build:** record the baseline (`flutter --version`, `flutter test`, `flutter analyze` must be green); create the canonical `lib/` tree from §4.1 (directories + `.gitkeep`), mirror the test layers under `test/`; `git init -b main` + hardened `.gitignore` (secrets, keystores, `supabase/.branches/`) + initial commit — git is folded in here because §9.9 requires every iteration to end with a commit.
@@ -641,7 +643,7 @@ Every implementation message follows this exact template:
 - **Tests:** `test/core/theme/app_theme_test.dart` — `AppTheme.light().scaffoldBackgroundColor == AppColors.paperBackground`, text sizes match typography tokens, focus decoration uses `accentWarm`.
 - **Done:** widget test green.
 
-#### Iteration 6 — KioskScaffold ⬜
+#### Iteration 6 — KioskScaffold ✅ (2026-11-18)
 
 - **Build:** root scaffold — paper background + faint dot-grid `CustomPainter`, safe-area/overscan padding (configurable 5% for TV later, §5.5), child slot, hook for background animations.
 - **Files:** `lib/core/widgets/kiosk_scaffold.dart`.
