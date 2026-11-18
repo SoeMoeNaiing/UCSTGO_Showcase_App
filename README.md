@@ -68,8 +68,8 @@ Visitor taps emoji
 - Flutter **3.47.9 stable** / Dart **3.13.7** (matches `pubspec.yaml`).
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
 - **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
-- **Phase 2 started:** `DeviceIdService` (anonymous stable UUID) + `CooldownService` (30s persistent) + `ConnectivityService` (link stream + reachability probe) — **110 tests**.
-- **Next:** Iteration 15 — `FeedbackModel` DTO + remote outcome mapping + payload.
+- **Phase 2 started:** `DeviceIdService` (anonymous stable UUID) + `CooldownService` (30s persistent) + `ConnectivityService` (link stream + reachability probe) + `FeedbackModel` (exact §6.2 wire DTO + §6.6 status table) — **126 tests**.
+- **Next:** Iteration 16 — `SyncService` (queue drain, outcomes, exponential backoff).
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.
@@ -102,4 +102,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 15:** `FeedbackModel` DTO + remote outcome mapping + exact wire payload. See [§10.5 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 16:** `SyncService` — serial queue drain, terminal/pending outcomes, and the 2→60s exponential backoff ladder. See [§10.5 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀

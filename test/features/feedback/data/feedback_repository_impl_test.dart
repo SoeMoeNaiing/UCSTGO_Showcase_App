@@ -1,28 +1,49 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/data/datasources/feedback_local_datasource.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/data/datasources/feedback_remote_datasource.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/data/local/app_database.dart';
+import 'package:ucstgo_showcase_flutter_app/features/feedback/data/models/feedback_model.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/data/repositories/feedback_repository_impl.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/feedback.dart';
+import 'package:ucstgo_showcase_flutter_app/services/device_id_service.dart';
 
 /// Fake remote with a programmable outcome and call log.
 class _FakeRemote implements FeedbackRemoteDataSource {
   RemoteOutcome outcome = RemoteOutcome.success;
   Object? error;
-  final calls = <Feedback>[];
-  Future<void> Function(Feedback feedback)? onCall;
+  final calls = <FeedbackModel>[];
+  Future<void> Function(FeedbackModel payload)? onCall;
 
   @override
-  Future<RemoteOutcome> submit(Feedback feedback) async {
-    calls.add(feedback);
-    await onCall?.call(feedback);
+  Future<RemoteOutcome> submit(FeedbackModel payload) async {
+    calls.add(payload);
+    await onCall?.call(payload);
     final failure = error;
     if (failure != null) throw failure;
     return outcome;
+  }
+}
+
+/// Mocktail remote used to pin the exact payload crossing the seam.
+class _MockRemote extends Mock implements FeedbackRemoteDataSource {}
+
+/// Empty identity storage standing in for a first launch.
+class _FakeDeviceIdStorage implements DeviceIdStorage {
+  String? value;
+  int writes = 0;
+
+  @override
+  Future<String?> read() async => value;
+
+  @override
+  Future<void> write(String newValue) async {
+    value = newValue;
+    writes++;
   }
 }
 
@@ -38,6 +59,16 @@ void main() {
   late FeedbackRepositoryImpl repository;
   late DateTime now;
   late bool online;
+
+  setUpAll(() {
+    registerFallbackValue(
+      const FeedbackModel(
+        clientId: 'fallback-client',
+        deviceId: 'fallback-device',
+        emojiChoice: EmojiChoice.neutral,
+      ),
+    );
+  });
 
   setUp(() {
     db = AppDatabase.withExecutor(NativeDatabase.memory());
@@ -56,10 +87,14 @@ void main() {
     await db.close();
   });
 
-  Feedback build({String client = 'client-1', DateTime? at}) {
+  Feedback build({
+    String client = 'client-1',
+    String device = 'device-1',
+    DateTime? at,
+  }) {
     return Feedback(
       clientId: client,
-      deviceId: 'device-1',
+      deviceId: device,
       emojiChoice: EmojiChoice.neutral,
       createdAt: at ?? now,
     );
@@ -74,9 +109,9 @@ void main() {
   group('FeedbackRepositoryImpl (§6.4, §6.6)', () {
     test('the local write happens before the remote call', () async {
       PendingFeedbackData? rowDuringUpload;
-      remote.onCall = (feedback) async {
+      remote.onCall = (payload) async {
         rowDuringUpload = await (db.select(db.pendingFeedback)
-              ..where((table) => table.clientId.equals(feedback.clientId)))
+              ..where((table) => table.clientId.equals(payload.clientId)))
             .getSingleOrNull();
       };
 
@@ -226,6 +261,49 @@ void main() {
       }
 
       expect(await repository.pending(limit: 2), hasLength(2));
+    });
+
+    test('the remote seam receives the exact §6.2 wire payload', () async {
+      final mockRemote = _MockRemote();
+      when(() => mockRemote.submit(any()))
+          .thenAnswer((_) async => RemoteOutcome.success);
+      final wired = FeedbackRepositoryImpl(
+        local: local,
+        remote: mockRemote,
+        isOnline: () async => true,
+      );
+
+      await wired.submit(build());
+
+      final payload = verify(() => mockRemote.submit(captureAny()))
+          .captured
+          .single as FeedbackModel;
+      expect(payload.toJson(), {
+        'client_id': 'client-1',
+        'device_id': 'device-1',
+        'emoji_choice': 'neutral',
+      });
+    });
+
+    test('first run: empty identity storage is filled before the row is saved',
+        () async {
+      final storage = _FakeDeviceIdStorage();
+      final deviceIds = DeviceIdService(storage: storage);
+      final deviceId = await deviceIds.getOrCreate();
+
+      await repository.submit(build(device: deviceId));
+
+      final saved = await row('client-1');
+      expect(saved.deviceId, deviceId);
+      expect(
+        RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        ).hasMatch(saved.deviceId),
+        isTrue,
+        reason: 'device ids are UUID v4',
+      );
+      expect(storage.writes, 1, reason: 'generated exactly once');
+      expect(remote.calls.single.deviceId, deviceId);
     });
   });
 }

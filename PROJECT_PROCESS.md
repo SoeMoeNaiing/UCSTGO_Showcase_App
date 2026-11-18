@@ -747,11 +747,12 @@ Every implementation message follows this exact template:
 - **Deps:** `connectivity_plus`.
 - **Done:** tests green.
 
-#### Iteration 15 — FeedbackModel DTO + remote outcome mapping + payload wiring ⬜
+#### Iteration 15 — FeedbackModel DTO + remote outcome mapping + payload wiring ✅ (2026-11-18)
 
 - **Build:** `FeedbackModel` entity↔JSON (`client_id`, `device_id`, `emoji_choice`); complete the Iteration 11 remote seam with a pure `mapHttpStatus → RemoteOutcome` table (`200/409 → success`, `429 → rejected`, `400 → invalid`, `5xx → serverError`, transport exception → `networkFailure`); `UnavailableFeedbackRemoteDataSource` uses `networkFailure` for the offline build. Guarantee both identifiers are present before any local write: `device_id` resolved from `DeviceIdService`, `client_id` always on the entity — payload keys match §6.2 exactly.
-- **Files:** `lib/features/feedback/data/models/feedback_model.dart`, `lib/features/feedback/data/datasources/feedback_remote_datasource.dart`, repository impl wiring.
-- **Tests:** `mocktail` — payload keys exact; the full status→outcome table; unavailable remote → `networkFailure`; missing device id → generated from fake storage before save.
+- **Decision:** the I11 seam is refined to `submit(FeedbackModel payload)` — the only upload path now carries the exact §6.2 wire DTO, not the domain entity, so Phase 6 cannot bypass the payload contract. The repository converts entity → DTO. `created_at` is **not** in the payload: the server assigns it (`now()`); the local row already records the visit time for queue ordering. Identity stays structural (`Feedback` asserts both ids); the first-run generation path is integration-tested before the local save.
+- **Files:** `lib/features/feedback/data/models/feedback_model.dart`, `lib/features/feedback/data/datasources/feedback_remote_datasource.dart`, `lib/features/feedback/data/repositories/feedback_repository_impl.dart`.
+- **Tests:** `mocktail` — payload keys exact; DTO round-trip; strict `fromJson`; the full status→outcome table; unavailable remote → `networkFailure`; seam receives the DTO; first-run device id generated from empty storage before the row is saved.
 - **Deps:** dev: `mocktail`.
 - **Done:** tests green.
 

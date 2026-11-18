@@ -4,6 +4,7 @@ import '../../domain/entities/feedback.dart';
 import '../../domain/repositories/feedback_repository.dart';
 import '../datasources/feedback_local_datasource.dart';
 import '../datasources/feedback_remote_datasource.dart';
+import '../models/feedback_model.dart';
 
 /// Local-first orchestration — PROJECT_PROCESS.md §6.4, §6.6.
 ///
@@ -37,7 +38,9 @@ class FeedbackRepositoryImpl implements FeedbackRepository {
 
     final RemoteOutcome outcome;
     try {
-      outcome = await remote.submit(feedback);
+      // The seam takes the exact §6.2 wire DTO, so Phase 6 cannot bypass
+      // the payload contract.
+      outcome = await remote.submit(FeedbackModel.fromFeedback(feedback));
     } catch (_) {
       // The seam promises not to throw; stay defensive so a buggy
       // datasource can never break the visitor's thank-you.
