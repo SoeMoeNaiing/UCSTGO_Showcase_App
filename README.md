@@ -68,8 +68,8 @@ Visitor taps emoji
 - Flutter **3.47.9 stable** / Dart **3.13.7** (matches `pubspec.yaml`).
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
 - **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
-- **Phase 2 started:** `DeviceIdService` (anonymous stable UUID) — **85 tests**.
-- **Next:** Iteration 13 — `CooldownService` (30s persistent cooldown).
+- **Phase 2 started:** `DeviceIdService` (anonymous stable UUID) + `CooldownService` (30s persistent) — **95 tests**.
+- **Next:** Iteration 14 — `ConnectivityService` (stream + reachability probe).
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.
@@ -102,4 +102,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 13:** `CooldownService` — 30-second per-action cooldown persisted across restarts. See [§10.5 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 14:** `ConnectivityService` — `connectivity_plus` link stream plus a 5s reachability probe, captive-portal safe. See [§10.5 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀

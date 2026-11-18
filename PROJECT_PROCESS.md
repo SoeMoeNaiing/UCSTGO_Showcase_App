@@ -160,7 +160,7 @@ These rules govern every decision. If a shortcut violates one, we don't take it.
 | **Local DB** | **Drift (`drift`, `drift_flutter`, `drift_dev` dev-dep)** | Type-safe SQLite, reactive streams, testable in-memory queue |
 | **Connectivity** | **`connectivity_plus`** | Network-change stream to trigger sync |
 | **Backoff** | **Manual exponential (no extra package)** | Simple, we control 2s → 60s schedule |
-| Rate limiting (client) | `limit` + `shared_preferences` | Persistent cooldown |
+| Rate limiting (client) | Custom `CooldownService` + `shared_preferences` | Persistent 30s cooldown with an injectable clock (`limit` rejected: hardcodes `DateTime.now`, untestable) |
 | Kiosk mode | `screen_pinning` | TV-only, Phase 7 |
 | Device ID | `uuid` + `shared_preferences` | Anonymous persistent identity |
 | Backend | Supabase (`supabase_flutter`) | Postgres + Edge Functions + real-time (future dashboard) |
@@ -602,7 +602,7 @@ Every implementation message follows this exact template:
 | 4 | `google_fonts` | pub |
 | 9 | `drift`, `drift_flutter`, dev: `drift_dev`, `build_runner` | pub + codegen |
 | 12 | `uuid`, `shared_preferences` | pub |
-| 13 | `limit` | pub |
+| 13 | — (custom service; injectable clock) | pub: `shared_preferences` already added at I12 |
 | 14 | `connectivity_plus` | pub |
 | 15 | dev: `mocktail` | pub |
 | 19 | `flutter_animate`, `rough_notation` | pub (focus + entrance motion) |
@@ -731,12 +731,12 @@ Every implementation message follows this exact template:
 - **Deps:** `uuid`, `shared_preferences`.
 - **Done:** tests green.
 
-#### Iteration 13 — CooldownService (30s persistent cooldown) ⬜
+#### Iteration 13 — CooldownService (30s persistent cooldown) ✅ (2026-11-18)
 
-- **Build:** per-action cooldown (feedback / rating) using `limit` + a persisted deadline so it survives restart; exposes `canSubmit(action)` and a `remaining` stream.
+- **Build:** per-action cooldown (feedback / rating) backed by a persisted deadline so it survives restart; exposes `canSubmit(action)`, `timeRemaining(action)` and a `remaining` stream. **Decision:** custom service with an injectable clock + storage seam; the `limit` package was evaluated and rejected because its `Cooldown` hardcodes `DateTime.now()` (untestable with the fake clock §8 requires) and bundles `prf`. `shared_preferences` is already present from I12.
 - **Files:** `lib/services/cooldown_service.dart`.
 - **Tests:** with fake clock — allowed → submit → blocked; after 30s allowed again; new service instance with persisted deadline still blocked; feedback and rating cooldowns don't cross-block.
-- **Deps:** `limit`.
+- **Deps:** none new (`shared_preferences` from I12).
 - **Done:** tests green (30s default tunable per §13).
 
 #### Iteration 14 — ConnectivityService (stream + reachability probe) ⬜
@@ -1143,7 +1143,7 @@ Please confirm:
 **From the original plan:**
 
 1. **Plan approved** — the roadmap, phases, and principles above all look right.
-2. **Tech stack** — Riverpod ✅, mocktail ✅, go_router ✅, Supabase ✅, limit ✅, no JS/HTML/CSS ✅.
+2. **Tech stack** — Riverpod ✅, mocktail ✅, go_router ✅, Supabase ✅, custom cooldown service ✅, no JS/HTML/CSS ✅.
 3. **Design tokens** — Living Sketchbook palette, spacing, typography defaults acceptable.
 4. **Phone-first strategy** — TV port deferred to Phase 7.
 5. **Ready for Iteration 1** — Flutter installed ✅ (3.47.9 stable detected), phone with USB debugging, Supabase account (or ready to create one at Iteration 34).
