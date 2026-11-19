@@ -156,7 +156,7 @@ These rules govern every decision. If a shortcut violates one, we don't take it.
 | Custom graphics | `CustomPainter` + `AnimationController` | Doodle art, procedural effects |
 | Doodle annotations | in-house `CustomPainter` (I19) | Sketchy focus frame; `rough_notation` was evaluated and dropped for timer races |
 | Sketch image entrance | `sketchify` | Line-drawing animation for logos |
-| Rating widget | `fancy_rating_bar` (optional) | Evaluate in Phase 4; may build custom for full control |
+| Rating widget | custom `CustomPainter` stars (I27) | Wobbly double-stroke sketch look; `fancy_rating_bar` evaluated and rejected |
 | Fonts | `google_fonts` | Zero-asset setup; lock family in Phase 0 |
 | **Local DB** | **Drift (`drift`, `drift_flutter`, `drift_dev` dev-dep)** | Type-safe SQLite, reactive streams, testable in-memory queue |
 | **Connectivity** | **`connectivity_plus`** | Network-change stream to trigger sync |
@@ -610,7 +610,7 @@ Every implementation message follows this exact template:
 | 20 | `flutter_riverpod` | pub (controller state machine, no `BuildContext`) |
 | 22 | `flutter_animate` | pub (thank-you entrance motion) |
 | 24 | `go_router` | pub (screen wiring) |
-| 25 | `fancy_rating_bar` (evaluate), `sketchify` (optional) | pub (keep only if sketch look holds) |
+| 25 | — (`fancy_rating_bar` evaluated at I27 and rejected; `sketchify` still optional) | none |
 | 30 | `rive`, `lottie` (light loops) + `assets/rive/` | pub + asset |
 | 33 | `integration_test` (dev) | pub |
 | 34 | — | **Manual: Supabase account + schema SQL** |
@@ -871,11 +871,13 @@ Every implementation message follows this exact template:
 - **Tests:** swipe changes page; focus-next advances index; dots update; no focus trap at list edges.
 - **Done:** widget test green.
 
-#### Iteration 27 — RatingWidget: sketch stars 1–5 ⬜
+#### Iteration 27 — RatingWidget: sketch stars 1–5 ✅ (2026-11-19)
 
 - **Build:** five `CustomPainter` stars that "draw in" on tap, score 1–5, D-pad left/right adjusts, elastic overshoot animation, ≥120dp min height (§5.5).
+- **Decision:** **verdict: reject `fancy_rating_bar`** — its API renders standard icon-based stars with colors/sizes; it cannot produce the wobbly double-stroke pencil look without forking, and a dependency is not justified when the sketch painter technique is already proven (I19 frame, I26 dots). Each star is a `_SketchStar` with its own 400ms path-draw-in controller plus an `elasticOut` scale pop; score is internal (0 = none) with `ValueChanged<int>?` for the I28 controller. Arrow keys are custom intents on a parent `FocusableActionDetector`, clamped to 0–5 (edge presses are no-ops). Whole widget is ≥120dp tall; each star is a semantic button labelled "Rate n stars" with a `selected` flag, under a group node "Rating: n of 5".
 - **Files:** `lib/features/rating/presentation/widgets/rating_widget.dart`.
 - **Tests:** tap star n → score n; right-arrow increments (capped at 5); semantics announce the score; min height asserted.
+- **Deps:** none (verdict above).
 - **Done:** widget test green; `fancy_rating_bar` verdict recorded (keep only if it yields the sketch look, else custom — §3).
 
 #### Iteration 28 — Rating submission path + RatingController ⬜
