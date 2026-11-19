@@ -828,12 +828,13 @@ Every implementation message follows this exact template:
 - **Deps:** `flutter_animate`.
 - **Done:** widget test green.
 
-#### Iteration 23 — RateProjectsPrompt ⬜
+#### Iteration 23 — RateProjectsPrompt ✅ (2026-11-19)
 
 - **Build:** "Rate our projects?" card with focusable **Yes** (→ rating) and **Skip** (→ idle) actions, sketch styling.
+- **Decision:** the I19 focus-frame painter moves from `emoji_picker.dart` to `core/widgets/sketch_focus_frame.dart` as `SketchFocusFramePainter` so the picker and the prompt share one unmistakable focus affordance; the picker's tests must stay green through the move. Prompt buttons use `InkWell` (focusable, built-in tap/Enter/Space activation and semantics) with a `FocusNode` listener driving the shared frame + `AnimatedScale` — never a bare `GestureDetector`. `autofocusYes` supports TV; arrow keys use Flutter's default directional focus. No throttle here: the picker's 2s gate already protects submissions, these are one-tap navigation actions.
 - **Files:** `lib/features/feedback/presentation/widgets/rate_projects_prompt.dart`.
-- **Tests:** Yes → `onYes` once; Skip → `onSkip` once; both reachable via focus traversal.
-- **Done:** widget test green.
+- **Tests:** Yes → `onYes` once; Skip → `onSkip` once; both reachable via focus traversal; focus frame only on the focused button; semantic buttons with tap actions.
+- **Done:** widget tests green.
 
 #### Iteration 24 — Full FeedbackScreen assembly + E2E widget test ⬜
 

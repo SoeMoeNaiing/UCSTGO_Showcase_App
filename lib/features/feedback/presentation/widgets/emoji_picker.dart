@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/sketch_focus_frame.dart';
 import '../../domain/entities/emoji_choice.dart';
 
 /// The three hand-drawn sentiment faces — PROJECT_PROCESS.md §5.1.
@@ -268,7 +269,7 @@ class _EmojiFaceState extends State<EmojiFace>
                             child: IgnorePointer(
                               child: CustomPaint(
                                 key: EmojiFace.focusBoxKeyFor(widget.choice),
-                                painter: _FocusFramePainter(
+                                painter: SketchFocusFramePainter(
                                   progress: _frameController,
                                   color: AppColors.accentWarm,
                                   strokeWidth: math.max(2.0, size * 0.016),
@@ -297,72 +298,6 @@ class _EmojiFaceState extends State<EmojiFace>
       ),
     );
   }
-}
-
-/// Draws the focus frame as two jittered pencil passes that "write"
-/// themselves in as [progress] runs from 0 to 1.
-///
-/// Deliberately in-house: `rough_notation`'s autoplay timer calls
-/// `AnimationController.forward()` after dispose when focus moves quickly,
-/// which is a real race on a D-pad. This painter owns no timers — a single
-/// `AnimationController` in the face state drives it.
-class _FocusFramePainter extends CustomPainter {
-  _FocusFramePainter({
-    required this.progress,
-    required this.color,
-    required this.strokeWidth,
-  }) : super(repaint: progress);
-
-  final Animation<double> progress;
-  final Color color;
-  final double strokeWidth;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final t = progress.value;
-    if (t <= 0) {
-      return;
-    }
-
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    // Two passes, different jitter — a box drawn twice by hand.
-    for (final seed in const [7, 23]) {
-      final path = _jitteredRect(size, seed);
-      for (final metric in path.computeMetrics()) {
-        canvas.drawPath(metric.extractPath(0, metric.length * t), paint);
-      }
-    }
-  }
-
-  Path _jitteredRect(Size size, int seed) {
-    final random = math.Random(seed);
-    Offset corner(double x, double y) => Offset(
-          x + random.nextDouble() * 5 - 2.5,
-          y + random.nextDouble() * 5 - 2.5,
-        );
-
-    final topLeft = corner(0, 0);
-    final topRight = corner(size.width, 0);
-    final bottomRight = corner(size.width, size.height);
-    final bottomLeft = corner(0, size.height);
-
-    return Path()
-      ..moveTo(topLeft.dx, topLeft.dy)
-      ..lineTo(topRight.dx, topRight.dy)
-      ..lineTo(bottomRight.dx, bottomRight.dy)
-      ..lineTo(bottomLeft.dx, bottomLeft.dy)
-      ..close();
-  }
-
-  @override
-  bool shouldRepaint(covariant _FocusFramePainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.strokeWidth != strokeWidth;
 }
 
 /// Paints one face as three or four wobbly ink strokes on paper.
