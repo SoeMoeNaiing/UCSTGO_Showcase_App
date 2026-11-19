@@ -7,6 +7,8 @@ import '../features/feedback/data/local/app_database.dart';
 import '../features/feedback/data/repositories/feedback_repository_impl.dart';
 import '../features/feedback/domain/repositories/feedback_repository.dart';
 import '../features/feedback/domain/usecases/submit_feedback.dart';
+import '../features/showcase/data/fixtures/project_fixtures.dart';
+import '../features/showcase/domain/entities/project.dart';
 import '../services/cooldown_service.dart';
 import '../services/device_id_service.dart';
 
@@ -44,6 +46,8 @@ final submitFeedbackProvider = Provider<SubmitFeedback>((ref) {
     newClientId: const Uuid().v4,
   );
 });
+
+final projectFixturesProvider = Provider<List<Project>>((ref) => projectFixtures);
 
 /// Adapters keep plugin-backed services out of `domain/` (§4.2).
 class _DeviceIdReaderAdapter implements DeviceIdReader {

@@ -854,11 +854,12 @@ Every implementation message follows this exact template:
 **Exit gate:** full `RatingScreen` widget test; rating rows flow through the same SyncService outcome matrix.
 **Deliverables:** `Project` entity + fixture list, `ProjectCard`, `ProjectCarousel`, `RatingWidget`, rating data layer + `RatingController`, `RatingScreen`.
 
-#### Iteration 25 — Project entity + ProjectCard ⬜
+#### Iteration 25 — Project entity + ProjectCard ✅ (2026-11-19)
 
 - **Build:** `Project` (`id`, `title`, `blurb`, `imageAsset?`) + a const fixture list of ~6 placeholder showcase projects in the showcase feature; polaroid `ProjectCard` with hand-drawn tape (§5.1).
+- **Decision:** `Project` stays pure Dart (no Flutter). Six const placeholders live in `features/showcase/data/fixtures/` and are exposed through `projectFixturesProvider` in `core/providers.dart` — no assets to load, no platform channels. The card is a paper-white polaroid with a wobbly tape painter and a sketch placeholder when `imageAsset` is null; selection uses `InkWell` + `ValueChanged<Project>` (tap and Enter/Space via built-in `ActivateIntent`), with the visual subtree excluded from one semantic button node. `sketchify` stays optional/deferred; the `fancy_rating_bar` verdict belongs to I27.
 - **Files:** `lib/features/showcase/domain/entities/project.dart`, `lib/features/showcase/presentation/widgets/project_card.dart`, fixture provider.
-- **Tests:** card renders title + blurb; tap/focus fires select callback once; tokens only.
+- **Tests:** card renders title + blurb; tap/focus fires select callback once; entity equality and fixture invariants; tokens only.
 - **Deps:** `fancy_rating_bar` evaluated later (I27); `sketchify` optional here for card entrance.
 - **Done:** widget test green.
 
