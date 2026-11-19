@@ -1,0 +1,3139 @@
+=== UI & THEME FILES ===
+lib/router/app_router.dart
+lib/screens/feedback_screen.dart
+lib/screens/rating_screen.dart
+lib/theme/colors.dart
+lib/theme/spacing.dart
+lib/theme/theme.dart
+lib/theme/typography.dart
+lib/widgets/attract_overlay.dart
+lib/widgets/cooldown_screen.dart
+lib/widgets/emoji_picker.dart
+lib/widgets/kiosk_scaffold.dart
+lib/widgets/project_card.dart
+lib/widgets/project_carousel.dart
+lib/widgets/rate_projects_prompt.dart
+lib/widgets/rating_widget.dart
+lib/widgets/sketch_animation.dart
+lib/widgets/sketch_focus_frame.dart
+lib/widgets/thank_you_card.dart
+
+========================================
+FILE: lib/router/app_router.dart
+========================================
+import 'package:go_router/go_router.dart';
+
+import '../screens/feedback_screen.dart';
+import '../screens/rating_screen.dart';
+
+/// Kiosk routes — `/feedback` is the entry point (§10.6, §10.7).
+///
+/// A factory keeps route state fresh per app instance (tests must not
+/// inherit a leaked `/rating` location from the previous test).
+GoRouter createAppRouter({String initialLocation = '/feedback'}) => GoRouter(
+      initialLocation: initialLocation,
+      routes: [
+        GoRoute(
+          path: '/feedback',
+          builder: (context, state) => const FeedbackScreen(),
+        ),
+        GoRoute(
+          path: '/rating',
+          builder: (context, state) => const RatingScreen(),
+        ),
+      ],
+    );
+
+/// Production router.
+final appRouter = createAppRouter();
+
+========================================
+FILE: lib/screens/feedback_screen.dart
+========================================
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../providers.dart';
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../theme/typography.dart';
+import '../widgets/attract_overlay.dart';
+import '../widgets/cooldown_screen.dart';
+import '../widgets/kiosk_scaffold.dart';
+import '../models/emoji_choice.dart';
+import '../controllers/feedback_controller.dart';
+import '../widgets/emoji_picker.dart';
+import '../widgets/rate_projects_prompt.dart';
+import '../widgets/thank_you_card.dart';
+
+/// The complete visitor feedback flow — PROJECT_PROCESS.md §10.6, I24.
+///
+/// Watches the `FeedbackController` state machine and renders one view per
+/// state: picker (idle/selecting/submitting) → thank-you (success) →
+/// rating prompt (after a short beat) → cooldown/error slots. The prompt's
+/// Yes navigates to `/rating` (a placeholder until I29); Skip resets the
+/// controller back to idle.
+class FeedbackScreen extends ConsumerStatefulWidget {
+  const FeedbackScreen({
+    super.key,
+    this.thankYouDelay = const Duration(seconds: 2),
+  });
+
+  /// How long the thank-you is held before the rating prompt appears.
+  /// Injectable so the E2E test advances it instantly.
+  final Duration thankYouDelay;
+
+  @override
+  ConsumerState<FeedbackScreen> createState() => _FeedbackScreenState();
+}
+
+class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
+  bool _showPrompt = false;
+  Timer? _promptTimer;
+
+  @override
+  void dispose() {
+    _promptTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onState(FeedbackState next) {
+    if (next is FeedbackSuccess) {
+      _promptTimer?.cancel();
+      _promptTimer = Timer(widget.thankYouDelay, () {
+        if (mounted) {
+          setState(() => _showPrompt = true);
+        }
+      });
+      return;
+    }
+
+    // Leaving success cancels the beat: no stale prompt on the next visit.
+    _promptTimer?.cancel();
+    _promptTimer = null;
+    if (_showPrompt) {
+      setState(() => _showPrompt = false);
+    }
+  }
+
+  Future<void> _select(EmojiChoice choice) =>
+      ref.read(feedbackControllerProvider.notifier).select(choice);
+
+  void _reset() => ref.read(feedbackControllerProvider.notifier).reset();
+
+  @override
+  Widget build(BuildContext context) {
+    // Riverpod 3 requires listeners to be registered during build.
+    ref.listen(feedbackControllerProvider, (previous, next) => _onState(next));
+    final state = ref.watch(feedbackControllerProvider);
+    return AttractOverlay(child: KioskScaffold(child: _body(state)));
+  }
+
+  Widget _body(FeedbackState state) {
+    if (_showPrompt && state is FeedbackSuccess) {
+      return Center(
+        child: RateProjectsPrompt(
+          onYes: () => context.go('/rating'),
+          onSkip: _reset,
+        ),
+      );
+    }
+
+    return switch (state) {
+      FeedbackIdle() || FeedbackSelecting() || FeedbackSubmitting() => Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'How was your visit?',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.headline.copyWith(
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                EmojiPicker(
+                  onSelected: (choice) => unawaited(_select(choice)),
+                  autofocusFirst: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      FeedbackSuccess() => const Center(child: ThankYouCard()),
+      FeedbackCooldown() => CooldownScreen(
+          remaining: ref.watch(feedbackCooldownRemainingProvider),
+          onExpiry: _reset,
+          message: state.message,
+        ),
+      FeedbackError() => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                state.message,
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(color: AppColors.inkPrimary),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              FilledButton(onPressed: _reset, child: const Text('Try again')),
+            ],
+          ),
+        ),
+    };
+  }
+}
+
+========================================
+FILE: lib/screens/rating_screen.dart
+========================================
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../providers.dart';
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../theme/typography.dart';
+import '../widgets/attract_overlay.dart';
+import '../widgets/cooldown_screen.dart';
+import '../widgets/kiosk_scaffold.dart';
+import '../controllers/rating_controller.dart';
+import '../widgets/rating_widget.dart';
+import '../models/project.dart';
+import '../widgets/project_card.dart';
+import '../widgets/project_carousel.dart';
+
+/// Full rating flow — carousel → project → stars → submit → confirmation
+/// (§10.7, I29). Local pick/score stay here; persistence goes through the
+/// tested `RatingController` → `SubmitRating` → local-first queue.
+class RatingScreen extends ConsumerStatefulWidget {
+  const RatingScreen({super.key});
+
+  static const submitKey = Key('rating_submit');
+  static const confirmationKey = Key('rating_confirmation');
+  static const statusKey = Key('rating_status');
+
+  @override
+  ConsumerState<RatingScreen> createState() => _RatingScreenState();
+}
+
+class _RatingScreenState extends ConsumerState<RatingScreen> {
+  Project? _selected;
+  int _score = 0;
+
+  void _select(Project project) {
+    setState(() {
+      _selected = project;
+      _score = 0;
+    });
+  }
+
+  void _scoreChanged(int score) => setState(() => _score = score);
+
+  void _submit() {
+    final project = _selected;
+    if (project == null || _score == 0) {
+      return;
+    }
+    unawaited(
+      ref.read(ratingControllerProvider.notifier).submit(
+            projectId: project.id,
+            score: _score,
+          ),
+    );
+  }
+
+  void _done() {
+    ref.read(ratingControllerProvider.notifier).reset();
+    setState(() {
+      _selected = null;
+      _score = 0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(ratingControllerProvider);
+
+    return AttractOverlay(
+      child: KioskScaffold(
+        child: Column(
+        children: [
+          Align(
+            alignment: Alignment.topLeft,
+            child: TextButton(
+              onPressed: () => context.go('/feedback'),
+              child: const Text('← Back'),
+            ),
+          ),
+          Expanded(child: Center(child: _body(state))),
+        ],
+      ),
+      ),
+    );
+  }
+
+  Widget _body(RatingState state) {
+    return switch (state) {
+      RatingSuccess() => _confirmation(),
+      RatingSubmitting() => _status('Saving your rating…'),
+      RatingCooldown() => KeyedSubtree(
+          key: RatingScreen.statusKey,
+          child: CooldownScreen(
+            remaining: ref.watch(ratingCooldownRemainingProvider),
+            onExpiry: _done,
+            message: state.message,
+          ),
+        ),
+      RatingError() => KeyedSubtree(
+          key: RatingScreen.statusKey,
+          child: _statusCopy(state.message),
+        ),
+      RatingIdle() => _selected == null ? _carousel() : _stars(),
+    };
+  }
+
+  Widget _carousel() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Rate our projects?',
+            textAlign: TextAlign.center,
+            style: AppTypography.headline.copyWith(
+              color: AppColors.inkPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Swipe or use ← →, then tap a project.',
+            textAlign: TextAlign.center,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.inkSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          ProjectCarousel(
+            projects: ref.watch(projectFixturesProvider),
+            onSelect: _select,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stars() {
+    final project = _selected!;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            project.title,
+            textAlign: TextAlign.center,
+            style: AppTypography.headline.copyWith(
+              color: AppColors.inkPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'How would you rate it?',
+            textAlign: TextAlign.center,
+            style: AppTypography.body.copyWith(
+              color: AppColors.inkSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          IgnorePointer(
+            child: ProjectCard(project: project, onSelect: (_) {}),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          RatingWidget(onChanged: _scoreChanged, autofocusFirst: true),
+          const SizedBox(height: AppSpacing.xl),
+          KeyedSubtree(
+            key: RatingScreen.submitKey,
+            child: FilledButton(
+              onPressed: _score > 0 ? _submit : null,
+              child: const Text('Submit rating'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _confirmation() {
+    final project = _selected;
+    return KeyedSubtree(
+      key: RatingScreen.confirmationKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Rating saved!',
+            style: AppTypography.headline.copyWith(
+              color: AppColors.inkPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            project == null
+                ? 'Thanks for your feedback!'
+                : 'You rated ${project.title} $_score stars.',
+            textAlign: TextAlign.center,
+            style: AppTypography.body.copyWith(
+              color: AppColors.inkSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          FilledButton(onPressed: _done, child: const Text('Done')),
+        ],
+      ),
+    );
+  }
+
+  Widget _status(String message) => KeyedSubtree(
+        key: RatingScreen.statusKey,
+        child: _statusCopy(message),
+      );
+
+  Widget _statusCopy(String message) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTypography.body.copyWith(
+              color: AppColors.inkPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          FilledButton(onPressed: _done, child: const Text('Done')),
+        ],
+      );
+}
+
+========================================
+FILE: lib/theme/colors.dart
+========================================
+import 'package:flutter/material.dart';
+
+/// Living Sketchbook color tokens — PROJECT_PROCESS.md §5.2.
+///
+/// This is the ONLY file in the entire project allowed to contain raw
+/// hex color literals (guarded by test/core/theme/design_tokens_test.dart).
+/// Every widget sources colors from here; hardcoding `Color(0xFF...)`
+/// anywhere else fails the test suite.
+abstract final class AppColors {
+  /// Main background — warm off-white paper.
+  static const paperBackground = Color(0xFFF7F3EA);
+
+  /// Card shadows and paper edges.
+  static const paperShadow = Color(0xFFE5DFD0);
+
+  /// Primary text and sketch strokes.
+  static const inkPrimary = Color(0xFF2B2B2B);
+
+  /// Secondary/body text.
+  static const inkSecondary = Color(0xFF5C5C5C);
+
+  /// Primary accent — active highlights, focus glow.
+  static const accentWarm = Color(0xFFFF6B4A);
+
+  /// Secondary accent.
+  static const accentSky = Color(0xFF7FB5D6);
+
+  /// Positive feedback (satisfied).
+  static const accentSage = Color(0xFFA8C09A);
+
+  /// Negative feedback (dissatisfied).
+  static const accentBlush = Color(0xFFF5A8A0);
+
+  /// Card surfaces.
+  static const paperWhite = Color(0xFFFFFFFF);
+
+  /// Idle-mode glow accent.
+  static const idleGlow = Color(0xFFFFD166);
+}
+
+========================================
+FILE: lib/theme/spacing.dart
+========================================
+/// Living Sketchbook spacing scale — PROJECT_PROCESS.md §5.4.
+///
+/// One spacing language for the whole app: `AppSpacing.md` instead of
+/// scattered `12.0` literals. Guarded by test/core/theme/design_tokens_test.dart
+/// (values locked + strictly increasing).
+abstract final class AppSpacing {
+  /// Tight coupling — icon to its label.
+  static const double xs = 4;
+
+  /// Inline gaps — inside buttons, chips.
+  static const double sm = 8;
+
+  /// Related elements — title to subtitle.
+  static const double md = 12;
+
+  /// Default gutter between siblings.
+  static const double lg = 16;
+
+  /// Section padding.
+  static const double xl = 24;
+
+  /// Card internal padding.
+  static const double xxl = 32;
+
+  /// Between major blocks.
+  static const double xxxl = 48;
+
+  /// Hero moments — idle screen, thank-you breathing room.
+  static const double huge = 64;
+}
+
+========================================
+FILE: lib/theme/theme.dart
+========================================
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import './colors.dart';
+import './spacing.dart';
+import './typography.dart';
+
+/// Composes the Living Sketchbook [ThemeData] from design tokens.
+/// PROJECT_PROCESS.md §4.1 (`core/theme/app_theme.dart`) and §5.
+///
+/// Two deliberate API surfaces:
+///
+/// * [light] is **pure** — tokens in, [ThemeData] out. No binding, no
+///   network, fully hermetic for unit/widget tests (§8.1).
+/// * [loadFonts] registers the Patrick Hand face with the engine. It is
+///   bootstrap-only (called from `main()`), never from tests.
+abstract final class AppTheme {
+  /// The single source of truth for app theming (no hardcoded values).
+  static ThemeData get light => ThemeData(
+        useMaterial3: true,
+        colorScheme: const ColorScheme.light(
+          primary: AppColors.accentWarm,
+          onPrimary: AppColors.paperWhite,
+          secondary: AppColors.accentSky,
+          onSecondary: AppColors.inkPrimary,
+          surface: AppColors.paperWhite,
+          onSurface: AppColors.inkPrimary,
+          error: AppColors.accentBlush,
+          onError: AppColors.inkPrimary,
+        ),
+        scaffoldBackgroundColor: AppColors.paperBackground,
+        textTheme: const TextTheme(
+          displayLarge: AppTypography.display,
+          headlineMedium: AppTypography.headline,
+          bodyLarge: AppTypography.body,
+          bodyMedium: AppTypography.body,
+          bodySmall: AppTypography.caption,
+        ),
+        cardTheme: CardThemeData(
+          color: AppColors.paperWhite,
+          elevation: 0,
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.sm,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.md),
+          ),
+        ),
+        // Focus is a first-class state for D-pad (§2.3.2): warm halo built
+        // from the accent token.
+        focusColor: AppColors.accentWarm.withValues(alpha: 0.25),
+        // Ripple instead of M3's sparkle: cheaper on low-end GPUs (§2.3.3).
+        splashFactory: InkRipple.splashFactory,
+      );
+
+  /// Registers the Patrick Hand face (google_fonts). Call once from
+  /// `main()` after `WidgetsFlutterBinding.ensureInitialized()`.
+  ///
+  /// Deferred to bootstrap so [light] stays hermetic and tests never
+  /// trigger network or binding access.
+  static void loadFonts() {
+    GoogleFonts.patrickHand();
+  }
+}
+
+========================================
+FILE: lib/theme/typography.dart
+========================================
+import 'package:flutter/material.dart';
+
+/// Living Sketchbook typography tokens — PROJECT_PROCESS.md §5.3.
+///
+/// Family locked at Iteration 4: **Patrick Hand** — a handwriting face
+/// designed for readability, which matters at 10-foot TV distance; the §13
+/// alternative (Caveat) degrades at body sizes.
+///
+/// [family] is the exact name google_fonts registers the face under
+/// (`'PatrickHand'`), so AppTheme (Iteration 5) wires loading with
+/// `GoogleFonts.patrickHandTextTheme()` and the names line up.
+///
+/// Tokens are pure `const` [TextStyle]s on purpose: no font loading, no
+/// network, no binding — fully hermetic unit tests (§8.1).
+abstract final class AppTypography {
+  /// Registered font family name (must match google_fonts' registration).
+  static const String family = 'PatrickHand';
+
+  // --- Size tokens: §5.3 ranges, concrete values locked here. ---
+
+  /// TV headlines — §5.3 range 48–64sp, locked at 56.
+  static const double displaySize = 56;
+
+  /// Section headlines — §5.3 range 32–40sp, locked at 36.
+  static const double headlineSize = 36;
+
+  /// Body — §5.3 range 20–24sp, locked at 22 (phone-first; the TV audit at
+  /// Iteration 42 promotes anything below [tvMinimumSize]).
+  static const double bodySize = 22;
+
+  /// Captions — §5.3 hard minimum.
+  static const double captionSize = 16;
+
+  /// §5.5 TV floor: anything a visitor *must* read on TV is ≥ 32sp.
+  static const double tvMinimumSize = 32;
+
+  // --- Styles (sizes only; colors are decided by the theme, §2.1.4). ---
+
+  static const TextStyle display =
+      TextStyle(fontFamily: family, fontSize: displaySize);
+
+  static const TextStyle headline =
+      TextStyle(fontFamily: family, fontSize: headlineSize);
+
+  static const TextStyle body =
+      TextStyle(fontFamily: family, fontSize: bodySize);
+
+  static const TextStyle caption =
+      TextStyle(fontFamily: family, fontSize: captionSize);
+}
+
+========================================
+FILE: lib/widgets/attract_overlay.dart
+========================================
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../theme/typography.dart';
+
+/// Kiosk attract mode: after [idleDuration] without input, a pencil-drawn
+/// welcome loop covers the screen; any touch or key dismisses it and resets
+/// the timer (§5.1, §13).
+///
+/// The wrapper deliberately does **not** autofocus — key events bubble up
+/// from whatever the screen focused (first face, first star), so initial
+/// focus targets stay intact. The visual is `IgnorePointer`; input is caught
+/// by the wrapper's [Listener] and [Focus] instead.
+class AttractOverlay extends StatefulWidget {
+  const AttractOverlay({
+    super.key,
+    required this.child,
+    this.idleDuration = const Duration(seconds: 20),
+  });
+
+  final Widget child;
+
+  /// Tunable per §13; defaults to the 20s attract loop.
+  final Duration idleDuration;
+
+  static const overlayKey = Key('attract_overlay');
+
+  @override
+  State<AttractOverlay> createState() => _AttractOverlayState();
+}
+
+class _AttractOverlayState extends State<AttractOverlay>
+    with SingleTickerProviderStateMixin {
+  Timer? _timer;
+  bool _idle = false;
+
+  /// Loops the "pencil drawing" underline; no asset, no network.
+  late final AnimationController _loop = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 2),
+  )..repeat();
+
+  @override
+  void initState() {
+    super.initState();
+    _arm();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _loop.dispose();
+    super.dispose();
+  }
+
+  void _arm() {
+    _timer?.cancel();
+    _timer = Timer(widget.idleDuration, _goIdle);
+  }
+
+  void _wake() {
+    _arm();
+    if (_idle && mounted) {
+      setState(() => _idle = false);
+    }
+  }
+
+  void _goIdle() {
+    if (mounted) {
+      setState(() => _idle = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) => _wake(),
+      child: Focus(
+        onKeyEvent: (node, event) {
+          _wake();
+          // Let the screen keep handling its own keys.
+          return KeyEventResult.ignored;
+        },
+        child: Stack(
+          children: [
+            widget.child,
+            if (_idle)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: KeyedSubtree(
+                    key: AttractOverlay.overlayKey,
+                    child: ColoredBox(
+                      color: AppColors.paperBackground.withValues(alpha: 0.96),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Welcome to UCSTGO',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.display.copyWith(
+                                color: AppColors.inkPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            SizedBox(
+                              width: 240,
+                              height: 16,
+                              child: AnimatedBuilder(
+                                animation: _loop,
+                                builder: (context, _) => CustomPaint(
+                                  painter: _PencilUnderlinePainter(
+                                    progress: _loop.value,
+                                    color: AppColors.accentWarm,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            Text(
+                              'Touch or press any key to begin',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.inkSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A wobbly line that draws itself from left to right, looping forever.
+class _PencilUnderlinePainter extends CustomPainter {
+  const _PencilUnderlinePainter({
+    required this.progress,
+    required this.color,
+  });
+
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) {
+      return;
+    }
+
+    final end = size.width * progress;
+    final path = Path();
+    const steps = 24;
+    for (var step = 0; step <= steps; step++) {
+      final x = end * step / steps;
+      final y = size.height / 2 + (step.isEven ? 1.5 : -1.5);
+      if (step == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _PencilUnderlinePainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.color != color;
+}
+
+========================================
+FILE: lib/widgets/cooldown_screen.dart
+========================================
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../theme/typography.dart';
+
+/// A designed "catch your breath" moment instead of a disabled button
+/// (§5.1, §7): a doodled clock counts down the persisted deadline.
+///
+/// Driven by an injected [Stream] so tests never touch platform storage;
+/// when the stream reaches zero (or completes) [onExpiry] fires exactly once
+/// and the caller returns to the interactive screen.
+class CooldownScreen extends StatefulWidget {
+  const CooldownScreen({
+    super.key,
+    required this.remaining,
+    this.onExpiry,
+    this.message = 'Thanks! Take a breath before going again.',
+  });
+
+  /// Remaining time from `CooldownService.remaining(action)`.
+  final Stream<Duration> remaining;
+
+  /// Called once when the cooldown ends.
+  final VoidCallback? onExpiry;
+
+  final String message;
+
+  static const clockKey = Key('cooldown_clock');
+  static const countdownKey = Key('cooldown_countdown');
+
+  @override
+  State<CooldownScreen> createState() => _CooldownScreenState();
+}
+
+class _CooldownScreenState extends State<CooldownScreen> {
+  StreamSubscription<Duration>? _subscription;
+  Duration? _remaining;
+  bool _expired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _listen(widget.remaining);
+  }
+
+  @override
+  void didUpdateWidget(covariant CooldownScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.remaining != widget.remaining) {
+      _subscription?.cancel();
+      _listen(widget.remaining);
+    }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  void _listen(Stream<Duration> stream) {
+    _remaining = null;
+    _expired = false;
+    _subscription = stream.listen(
+      (left) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _remaining = left);
+        if (left <= Duration.zero) {
+          _fireExpiry();
+        }
+      },
+      onDone: _fireExpiry,
+      onError: (_) => _fireExpiry(),
+    );
+  }
+
+  void _fireExpiry() {
+    if (_expired) {
+      return;
+    }
+    _expired = true;
+    widget.onExpiry?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final left = _remaining;
+    final seconds = left?.inSeconds;
+    final fraction = seconds == null || seconds <= 0
+        ? 0.0
+        : (seconds / 30).clamp(0.0, 1.0);
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+          SizedBox.square(
+            dimension: 160,
+            child: CustomPaint(
+              key: CooldownScreen.clockKey,
+              painter: _ClockPainter(
+                ink: AppColors.inkPrimary,
+                glow: AppColors.idleGlow,
+                fraction: fraction,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          Text(
+            seconds == null ? 'Just a moment…' : '${seconds}s',
+            key: CooldownScreen.countdownKey,
+            style: AppTypography.display.copyWith(
+              color: AppColors.inkPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            widget.message,
+            textAlign: TextAlign.center,
+            style: AppTypography.body.copyWith(
+              color: AppColors.inkSecondary,
+            ),
+          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Wobbly clock face with a hand that unwinds as the deadline approaches.
+class _ClockPainter extends CustomPainter {
+  const _ClockPainter({
+    required this.ink,
+    required this.glow,
+    required this.fraction,
+  });
+
+  final Color ink;
+  final Color glow;
+  final double fraction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide * 0.42;
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()..color = glow.withValues(alpha: 0.25),
+    );
+
+    final stroke = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawCircle(center, radius, stroke);
+
+    for (var tick = 0; tick < 12; tick++) {
+      final angle = tick * 2 * math.pi / 12;
+      final inner = radius * 0.82;
+      final outer = radius * 0.92;
+      canvas.drawLine(
+        center + Offset(math.cos(angle) * inner, math.sin(angle) * inner),
+        center + Offset(math.cos(angle) * outer, math.sin(angle) * outer),
+        stroke..strokeWidth = 1.6,
+      );
+    }
+
+    final handAngle = -math.pi / 2 + (1 - fraction) * 2 * math.pi;
+    canvas.drawLine(
+      center,
+      center +
+          Offset(math.cos(handAngle) * radius * 0.6,
+              math.sin(handAngle) * radius * 0.6),
+      stroke
+        ..strokeWidth = 3
+        ..color = ink,
+    );
+    canvas.drawCircle(center, 4, Paint()..color = ink);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ClockPainter oldDelegate) =>
+      oldDelegate.fraction != fraction ||
+      oldDelegate.ink != ink ||
+      oldDelegate.glow != glow;
+}
+
+========================================
+FILE: lib/widgets/emoji_picker.dart
+========================================
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../theme/typography.dart';
+import './sketch_animation.dart';
+import './sketch_focus_frame.dart';
+import '../models/emoji_choice.dart';
+
+/// The three hand-drawn sentiment faces — PROJECT_PROCESS.md §5.1.
+///
+/// Interactive since Iteration 19: every face is a focusable button (tap,
+/// Enter/D-pad, arrow traversal) with a hand-drawn focus frame and a single
+/// 2-second selection window shared by all three faces (§7 client throttle).
+/// Geometry and colors still come from tokens only — §2.1.4.
+class EmojiPicker extends StatefulWidget {
+  const EmojiPicker({
+    super.key,
+    required this.onSelected,
+    this.maxFaceSize = 180,
+    this.throttle = const Duration(seconds: 2),
+    this.autofocusFirst = false,
+    this.faceAnimationBackend,
+  })  : assert(maxFaceSize > 0, 'maxFaceSize must be positive'),
+        assert(throttle > Duration.zero, 'throttle must be positive');
+
+  /// Fired once per accepted activation. Activations inside [throttle]
+  /// never reach this callback — the submit path stays single-shot.
+  final ValueChanged<EmojiChoice> onSelected;
+
+  /// Upper bound for one face. Phones scale down from here; a 4K TV can
+  /// raise it without touching the painter.
+  final double maxFaceSize;
+
+  /// §7 client throttle: a second activation inside this window is dropped.
+  final Duration throttle;
+
+  /// Requests focus on the first (happy) face after the first frame.
+  /// Used by the TV pass; I24 decides the phone default.
+  final bool autofocusFirst;
+
+  /// Optional animated backend for the faces (I30 Rive seam). When null the
+  /// proven `CustomPainter` path is used unchanged.
+  final SketchAnimationBackend? faceAnimationBackend;
+
+  @override
+  State<EmojiPicker> createState() => _EmojiPickerState();
+}
+
+class _EmojiPickerState extends State<EmojiPicker> {
+  Timer? _throttleTimer;
+
+  bool get _isThrottled => _throttleTimer?.isActive ?? false;
+
+  void _select(EmojiChoice choice) {
+    if (_isThrottled) {
+      return;
+    }
+    // The inactive timer itself is the release signal — no wall clock.
+    _throttleTimer = Timer(widget.throttle, _endThrottle);
+    widget.onSelected(choice);
+  }
+
+  void _endThrottle() {
+    // Intentionally empty: timer inactivity is the release signal.
+  }
+
+  @override
+  void dispose() {
+    _throttleTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Each face is a third of the row minus breathing room. The cap
+        // keeps 10-foot sizing from turning into a giant on wide screens.
+        final raw = (constraints.maxWidth - AppSpacing.lg * 2) / 3;
+        final faceSize = raw.isFinite
+            ? raw.clamp(0.0, widget.maxFaceSize).toDouble()
+            : widget.maxFaceSize;
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final choice in EmojiChoice.values)
+              EmojiFace(
+                choice: choice,
+                size: faceSize,
+                autofocus: widget.autofocusFirst &&
+                    choice == EmojiChoice.values.first,
+                animationBackend: widget.faceAnimationBackend,
+                onActivate: () => _select(choice),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// One sketch-outlined sentiment face plus its visible label.
+///
+/// A focusable button: tap, Enter/Space/Select or D-pad activate it. Focus
+/// draws an animated rough frame and pops the face; arrow keys move through
+/// Flutter's default directional traversal. The whole unit is a single
+/// semantic node ("Satisfied", …) with a tap action.
+class EmojiFace extends StatefulWidget {
+  const EmojiFace({
+    super.key,
+    required this.choice,
+    required this.size,
+    required this.onActivate,
+    this.autofocus = false,
+    this.animationBackend,
+  }) : assert(size > 0, 'size must be positive');
+
+  /// Sentiment rendered by this face.
+  final EmojiChoice choice;
+
+  /// Width and height of the drawn face (the label sits underneath).
+  final double size;
+
+  /// Called for every accepted tap or keyboard activation.
+  final VoidCallback onActivate;
+
+  /// Requests focus after the first frame (first face on TV).
+  final bool autofocus;
+
+  /// Optional animated backend (I30 Rive seam). Null keeps the original
+  /// painter path so all existing focus/keyboard tests are unaffected.
+  final SketchAnimationBackend? animationBackend;
+
+  /// Stable canvas key so tests can measure the square face itself.
+  static Key canvasKeyFor(EmojiChoice choice) =>
+      ValueKey('emoji-face-canvas-${choice.wireValue}');
+
+  /// Stable key for the rough focus frame so tests can assert visibility.
+  static Key focusBoxKeyFor(EmojiChoice choice) =>
+      ValueKey('emoji-focus-box-${choice.wireValue}');
+
+  /// Spoken label for assistive tech — the domain vocabulary, not the
+  /// friendlier visible copy.
+  static String semanticLabelFor(EmojiChoice choice) => switch (choice) {
+        EmojiChoice.satisfied => 'Satisfied',
+        EmojiChoice.neutral => 'Neutral',
+        EmojiChoice.dissatisfied => 'Dissatisfied',
+      };
+
+  /// Short visible copy, readable at 10 feet.
+  static String visibleLabelFor(EmojiChoice choice) => switch (choice) {
+        EmojiChoice.satisfied => 'Loved it',
+        EmojiChoice.neutral => 'Okay',
+        EmojiChoice.dissatisfied => 'Not great',
+      };
+
+  @override
+  State<EmojiFace> createState() => _EmojiFaceState();
+}
+
+class _EmojiFaceState extends State<EmojiFace>
+    with SingleTickerProviderStateMixin {
+  late final FocusNode _focusNode =
+      FocusNode(debugLabel: 'emoji-${widget.choice.wireValue}');
+  late final AnimationController _frameController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+  );
+  bool _focused = false;
+
+  Color get _accent => switch (widget.choice) {
+        EmojiChoice.satisfied => AppColors.accentSage,
+        EmojiChoice.neutral => AppColors.accentSky,
+        EmojiChoice.dissatisfied => AppColors.accentBlush,
+      };
+
+  /// A few degrees of asymmetry make the row feel hand-placed, not stamped.
+  double get _tilt => switch (widget.choice) {
+        EmojiChoice.satisfied => -0.025,
+        EmojiChoice.neutral => 0.015,
+        EmojiChoice.dissatisfied => -0.01,
+      };
+
+  @override
+  void dispose() {
+    _frameController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _activate() {
+    // Touch must leave the same visible focus state as D-pad navigation.
+    _focusNode.requestFocus();
+    widget.onActivate();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.size;
+
+    return Semantics(
+      container: true,
+      button: true,
+      label: EmojiFace.semanticLabelFor(widget.choice),
+      onTap: _activate,
+      child: ExcludeSemantics(
+        child: FocusableActionDetector(
+          focusNode: _focusNode,
+          autofocus: widget.autofocus,
+          onFocusChange: (hasFocus) {
+            if (!mounted || hasFocus == _focused) {
+              return;
+            }
+            if (hasFocus) {
+              _frameController.forward(from: 0);
+            } else {
+              _frameController.value = 0;
+            }
+            setState(() => _focused = hasFocus);
+          },
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
+          },
+          actions: {
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                _activate();
+                return null;
+              },
+            ),
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _activate,
+            child: SizedBox(
+              width: size,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox.square(
+                    dimension: size,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned.fill(
+                          child: AnimatedScale(
+                            scale: _focused ? 1.06 : 1.0,
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOutBack,
+                            child: Transform.rotate(
+                              angle: _tilt,
+                              child: widget.animationBackend == null
+                                  ? CustomPaint(
+                                      key: EmojiFace.canvasKeyFor(
+                                        widget.choice,
+                                      ),
+                                      painter: _EmojiFacePainter(
+                                        choice: widget.choice,
+                                        ink: AppColors.inkPrimary,
+                                        accent: _accent,
+                                        blush: AppColors.accentBlush,
+                                      ),
+                                    )
+                                  : SketchAnimation(
+                                      painter: _EmojiFacePainter(
+                                        choice: widget.choice,
+                                        ink: AppColors.inkPrimary,
+                                        accent: _accent,
+                                        blush: AppColors.accentBlush,
+                                      ),
+                                      backend: widget.animationBackend!,
+                                      active: _focused,
+                                      fallbackKey:
+                                          EmojiFace.canvasKeyFor(widget.choice),
+                                    ),
+                            ),
+                          ),
+                        ),
+                        if (_focused)
+                          Positioned(
+                            left: -size * 0.06,
+                            top: -size * 0.06,
+                            width: size * 1.12,
+                            height: size * 1.12,
+                            child: IgnorePointer(
+                              child: CustomPaint(
+                                key: EmojiFace.focusBoxKeyFor(widget.choice),
+                                painter: SketchFocusFramePainter(
+                                  progress: _frameController,
+                                  color: AppColors.accentWarm,
+                                  strokeWidth: math.max(2.0, size * 0.016),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
+                    EmojiFace.visibleLabelFor(widget.choice),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.inkSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Paints one face as three or four wobbly ink strokes on paper.
+///
+/// Deliberately cheap: a handful of paths per face, one `CustomPaint` each,
+/// no shaders or save layers — safe for a low-end TV GPU (§2.3.3).
+class _EmojiFacePainter extends CustomPainter {
+  const _EmojiFacePainter({
+    required this.choice,
+    required this.ink,
+    required this.accent,
+    required this.blush,
+  });
+
+  final EmojiChoice choice;
+  final Color ink;
+  final Color accent;
+  final Color blush;
+
+  static const double _washOpacity = 0.16;
+  static const double _blushOpacity = 0.5;
+
+  /// Deterministic wobble phase per face so repaints never shimmer.
+  int get _seed => switch (choice) {
+        EmojiChoice.satisfied => 3,
+        EmojiChoice.neutral => 11,
+        EmojiChoice.dissatisfied => 19,
+      };
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final side = size.shortestSide;
+    final center = Offset(size.width / 2, size.height / 2);
+
+    // A soft accent swipe behind the face, like a marker highlight.
+    final wash = Paint()
+      ..color = accent.withValues(alpha: _washOpacity)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(
+      _blob(
+        center.translate(side * 0.01, side * 0.015),
+        side * 0.46,
+        seed: _seed + 5,
+      ),
+      wash,
+    );
+
+    final stroke = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = side * 0.018
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // A faint second pass, offset by a hair — the "drawn twice" pencil look.
+    final ghost = Paint()
+      ..color = ink.withValues(alpha: 0.28)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = side * 0.012
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(
+      _blob(
+        center.translate(-side * 0.007, side * 0.006),
+        side * 0.405,
+        seed: _seed + 1,
+      ),
+      ghost,
+    );
+
+    canvas.drawPath(_blob(center, side * 0.41, seed: _seed), stroke);
+    _paintFeatures(canvas, side, center, stroke);
+  }
+
+  void _paintFeatures(Canvas canvas, double side, Offset center, Paint stroke) {
+    final eyeY = center.dy - side * 0.07;
+    final leftEye = Offset(center.dx - side * 0.16, eyeY);
+    final rightEye = Offset(center.dx + side * 0.16, eyeY);
+
+    if (choice == EmojiChoice.satisfied) {
+      _drawClosedEye(canvas, leftEye, side, stroke);
+      _drawClosedEye(canvas, rightEye, side, stroke);
+      _drawCheeks(canvas, center, side);
+    } else {
+      _drawDotEye(canvas, leftEye, side);
+      _drawDotEye(canvas, rightEye, side);
+    }
+
+    _drawMouth(canvas, center, side, stroke);
+  }
+
+  /// A happy "^" eye: an upward-bowed arc.
+  void _drawClosedEye(Canvas canvas, Offset eye, double side, Paint stroke) {
+    final width = side * 0.13;
+    final path = Path()
+      ..moveTo(eye.dx - width / 2, eye.dy + width * 0.12)
+      ..quadraticBezierTo(
+        eye.dx,
+        eye.dy - width * 0.45,
+        eye.dx + width / 2,
+        eye.dy + width * 0.12,
+      );
+    canvas.drawPath(path, stroke);
+  }
+
+  void _drawDotEye(Canvas canvas, Offset eye, double side) {
+    final dot = Paint()
+      ..color = ink
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(eye, side * 0.027, dot);
+  }
+
+  void _drawCheeks(Canvas canvas, Offset center, double side) {
+    final cheek = Paint()
+      ..color = blush.withValues(alpha: _blushOpacity)
+      ..style = PaintingStyle.fill;
+    final y = center.dy + side * 0.1;
+    canvas.drawCircle(
+      Offset(center.dx - side * 0.27, y),
+      side * 0.05,
+      cheek,
+    );
+    canvas.drawCircle(
+      Offset(center.dx + side * 0.27, y),
+      side * 0.05,
+      cheek,
+    );
+  }
+
+  void _drawMouth(Canvas canvas, Offset center, double side, Paint stroke) {
+    final halfWidth = side * 0.15;
+    final mouthY = center.dy + side * 0.12;
+    final path = Path();
+
+    switch (choice) {
+      case EmojiChoice.satisfied:
+        // A big "U" smile.
+        path
+          ..moveTo(center.dx - halfWidth, mouthY)
+          ..quadraticBezierTo(
+            center.dx,
+            mouthY + side * 0.16,
+            center.dx + halfWidth,
+            mouthY,
+          );
+      case EmojiChoice.neutral:
+        // A small wavy line — not a frown, not a smile.
+        path
+          ..moveTo(center.dx - halfWidth, mouthY + side * 0.02)
+          ..quadraticBezierTo(
+            center.dx - halfWidth / 2,
+            mouthY - side * 0.01,
+            center.dx,
+            mouthY + side * 0.02,
+          )
+          ..quadraticBezierTo(
+            center.dx + halfWidth / 2,
+            mouthY + side * 0.05,
+            center.dx + halfWidth,
+            mouthY + side * 0.02,
+          );
+      case EmojiChoice.dissatisfied:
+        // An inverted "U" frown: corners down, centre up.
+        path
+          ..moveTo(center.dx - halfWidth, mouthY + side * 0.07)
+          ..quadraticBezierTo(
+            center.dx,
+            mouthY - side * 0.1,
+            center.dx + halfWidth,
+            mouthY + side * 0.07,
+          );
+    }
+
+    canvas.drawPath(path, stroke);
+  }
+
+  /// A closed but slightly irregular circle, sampled with two low-frequency
+  /// sine waves — hand-drawn without randomness.
+  Path _blob(Offset center, double radius, {required int seed}) {
+    const steps = 48;
+    final path = Path();
+
+    for (var i = 0; i <= steps; i++) {
+      final angle = 2 * math.pi * i / steps;
+      final wobble = 1 +
+          0.018 * math.sin(3 * angle + seed) +
+          0.011 * math.sin(5 * angle - seed * 1.7);
+      final point = center +
+          Offset(
+            math.cos(angle) * radius * wobble,
+            math.sin(angle) * radius * wobble,
+          );
+
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    return path..close();
+  }
+
+  @override
+  bool shouldRepaint(covariant _EmojiFacePainter oldDelegate) =>
+      oldDelegate.choice != choice ||
+      oldDelegate.ink != ink ||
+      oldDelegate.accent != accent ||
+      oldDelegate.blush != blush;
+}
+
+========================================
+FILE: lib/widgets/kiosk_scaffold.dart
+========================================
+import 'dart:ui' show PointMode;
+
+import 'package:flutter/material.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+
+/// Root scaffold for every kiosk screen — PROJECT_PROCESS.md §4.1, §5.1, §5.5.
+///
+/// Owns the shared visual surface so feature screens never re-implement it:
+///
+/// * warm paper background from [AppColors.paperBackground],
+/// * faint dot-grid "paper texture" (single `drawPoints` call — cheap on
+///   low-end TV GPUs, §2.3.3),
+/// * TV overscan protection: [overscan] is a fraction of the shortest side
+///   (Phase 6 locks it to 5%, §5.5; phone default stays edge-to-edge),
+/// * optional decorative [background] layer for the attract mode
+///   (Iteration 36) — painted behind content and always input-transparent.
+///
+/// The scaffold is deliberately *dumb*: no state, no providers, no motion.
+class KioskScaffold extends StatelessWidget {
+  const KioskScaffold({
+    super.key,
+    required this.child,
+    this.background,
+    this.overscan = 0.0,
+    this.showGrid = true,
+  }) : assert(
+          overscan >= 0 && overscan < 0.5,
+          'overscan must be a sane fraction of the shortest side',
+        );
+
+  /// The screen content (feature screen body).
+  final Widget child;
+
+  /// Optional decorative layer painted behind the content (attract mode).
+  final Widget? background;
+
+  /// Overscan-safe inset as a fraction of the shortest side.
+  /// 0.0 on phone; 0.05 for TV (Phase 6, §5.5).
+  final double overscan;
+
+  /// Toggles the paper dot-grid texture (useful for golden/clean captures).
+  final bool showGrid;
+
+  /// Stable key for the texture layer so tests can prove it paints.
+  static const gridKey = Key('kiosk_dot_grid');
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.paperBackground,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (showGrid)
+            const IgnorePointer(
+              child: CustomPaint(
+                key: gridKey,
+                painter: _DotGridPainter(),
+              ),
+            ),
+          if (background != null)
+            IgnorePointer(child: background!),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final inset = overscan * constraints.biggest.shortestSide;
+              return SafeArea(
+                minimum: EdgeInsets.all(inset),
+                child: child,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Faint dot-grid "paper texture" (§5.1).
+///
+/// One `drawPoints` call instead of ~14k `drawCircle` calls on a 4K TV —
+/// the difference between a texture and a jank source (§2.3.3).
+class _DotGridPainter extends CustomPainter {
+  const _DotGridPainter();
+
+  static const double _dotOpacity = 0.06;
+  static const double _dotRadius = 1.2;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.inkSecondary.withValues(alpha: _dotOpacity)
+      ..strokeWidth = _dotRadius * 2
+      ..strokeCap = StrokeCap.round;
+
+    final points = <Offset>[
+      for (var x = AppSpacing.xl / 2; x < size.width; x += AppSpacing.xl)
+        for (var y = AppSpacing.xl / 2; y < size.height; y += AppSpacing.xl)
+          Offset(x, y),
+    ];
+
+    canvas.drawPoints(PointMode.points, points, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DotGridPainter oldDelegate) => false;
+}
+
+========================================
+FILE: lib/widgets/project_card.dart
+========================================
+import 'package:flutter/material.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../theme/typography.dart';
+import '../models/project.dart';
+
+/// A showcase project as a hand-taped polaroid (§5.1, §10.7).
+///
+/// Selection is a button action: tap, Enter/Space and screen-reader tap all
+/// call [onSelect] exactly once with the project. The whole visual is one
+/// semantic node with the blurb as its hint.
+class ProjectCard extends StatelessWidget {
+  const ProjectCard({
+    super.key,
+    required this.project,
+    required this.onSelect,
+    this.autofocus = false,
+    this.focusNode,
+  });
+
+  /// Project shown on the card.
+  final Project project;
+
+  /// Fired once when the visitor selects this card.
+  final ValueChanged<Project> onSelect;
+
+  /// Requests focus after the first frame (carousel / TV).
+  final bool autofocus;
+
+  /// Optional externally owned focus node (the carousel moves focus to the
+  /// visible card). When null, `InkWell` owns its own node.
+  final FocusNode? focusNode;
+
+  static const double cardWidth = 220;
+  static const double cardHeight = 288;
+
+  void _select() => onSelect(project);
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: project.title,
+      hint: project.blurb,
+      onTap: _select,
+      child: ExcludeSemantics(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            InkWell(
+              focusNode: focusNode,
+              autofocus: autofocus,
+              onTap: _select,
+              borderRadius: BorderRadius.circular(AppSpacing.sm),
+              child: Container(
+                width: cardWidth,
+                height: cardHeight,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.paperWhite,
+                  borderRadius: BorderRadius.circular(AppSpacing.sm),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.paperShadow,
+                      blurRadius: AppSpacing.lg,
+                      offset: const Offset(2, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: project.imageAsset == null
+                          ? CustomPaint(
+                              painter: _PlaceholderArtPainter(
+                                ink: AppColors.inkPrimary,
+                                sky: AppColors.accentSky,
+                                warm: AppColors.accentWarm,
+                              ),
+                            )
+                          : ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(AppSpacing.xs),
+                              child: Image.asset(
+                                project.imageAsset!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => CustomPaint(
+                                  painter: _PlaceholderArtPainter(
+                                    ink: AppColors.inkPrimary,
+                                    sky: AppColors.accentSky,
+                                    warm: AppColors.accentWarm,
+                                  ),
+                                ),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      project.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.inkPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      project.blurb,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.inkSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              top: -AppSpacing.sm,
+              left: (cardWidth - 80) / 2,
+              child: IgnorePointer(
+                child: SizedBox(
+                  width: 80,
+                  height: 26,
+                  child: CustomPaint(
+                    painter: _TapePainter(
+                      tape: AppColors.idleGlow.withValues(alpha: 0.65),
+                      edge: AppColors.inkPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Wobbly strip of masking tape holding the polaroid up.
+class _TapePainter extends CustomPainter {
+  const _TapePainter({required this.tape, required this.edge});
+
+  final Color tape;
+  final Color edge;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strip = Path()
+      ..moveTo(3, 4)
+      ..lineTo(size.width - 4, 1)
+      ..lineTo(size.width - 1, size.height - 3)
+      ..lineTo(2, size.height - 5)
+      ..close();
+
+    canvas.drawPath(strip, Paint()..color = tape..style = PaintingStyle.fill);
+    canvas.drawPath(
+      strip,
+      Paint()
+        ..color = edge.withValues(alpha: 0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TapePainter oldDelegate) =>
+      oldDelegate.tape != tape || oldDelegate.edge != edge;
+}
+
+/// A cheap doodle scene standing in for a real project image.
+class _PlaceholderArtPainter extends CustomPainter {
+  const _PlaceholderArtPainter({
+    required this.ink,
+    required this.sky,
+    required this.warm,
+  });
+
+  final Color ink;
+  final Color sky;
+  final Color warm;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    canvas.drawCircle(
+      Offset(w * 0.76, h * 0.24),
+      w * 0.1,
+      Paint()..color = warm.withValues(alpha: 0.5),
+    );
+
+    final stroke = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.06, h * 0.8)
+        ..lineTo(w * 0.4, h * 0.34)
+        ..lineTo(w * 0.7, h * 0.8),
+      stroke,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.38, h * 0.8)
+        ..lineTo(w * 0.66, h * 0.5)
+        ..lineTo(w * 0.94, h * 0.8),
+      stroke..color = sky,
+    );
+    canvas.drawLine(
+      Offset(w * 0.06, h * 0.84),
+      Offset(w * 0.94, h * 0.82),
+      stroke..color = ink,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlaceholderArtPainter oldDelegate) =>
+      oldDelegate.ink != ink ||
+      oldDelegate.sky != sky ||
+      oldDelegate.warm != warm;
+}
+
+========================================
+FILE: lib/widgets/project_carousel.dart
+========================================
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../models/project.dart';
+import './project_card.dart';
+
+class _NextProjectIntent extends Intent {
+  const _NextProjectIntent();
+}
+
+class _PreviousProjectIntent extends Intent {
+  const _PreviousProjectIntent();
+}
+
+/// Swipeable showcase projects with D-pad next/prev and sketch page dots
+/// (§10.7, §2.3.2).
+///
+/// Focus follows the visible page: the carousel owns a `FocusNode` per card
+/// and hands focus to the new page after a swipe or arrow key. Arrow actions
+/// are clamped, so the first/last card is never a focus trap.
+class ProjectCarousel extends StatefulWidget {
+  const ProjectCarousel({
+    super.key,
+    required this.projects,
+    required this.onSelect,
+    this.initialIndex = 0,
+    this.viewportHeight = 340,
+  });
+
+  final List<Project> projects;
+  final ValueChanged<Project> onSelect;
+  final int initialIndex;
+  final double viewportHeight;
+
+  static const pageViewKey = Key('project_carousel_pages');
+  static const dotsKey = Key('project_carousel_dots');
+
+  @override
+  State<ProjectCarousel> createState() => _ProjectCarouselState();
+}
+
+class _ProjectCarouselState extends State<ProjectCarousel> {
+  late final PageController _pages;
+  late final List<FocusNode> _cardNodes;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex.clamp(0, widget.projects.length - 1);
+    _pages = PageController(initialPage: _index);
+    _cardNodes = List.generate(widget.projects.length, (_) => FocusNode());
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    for (final node in _cardNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  void _goTo(int target) {
+    final next = target.clamp(0, widget.projects.length - 1);
+    if (next == _index) {
+      return; // edge is a no-op, never a focus trap
+    }
+    _pages.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _onPageChanged(int index) {
+    setState(() => _index = index);
+    // The old card is now off-screen; move focus to the visible one.
+    _cardNodes[index].requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FocusableActionDetector(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.arrowRight): _NextProjectIntent(),
+        SingleActivator(LogicalKeyboardKey.arrowLeft):
+            _PreviousProjectIntent(),
+      },
+      actions: {
+        _NextProjectIntent: CallbackAction<_NextProjectIntent>(
+          onInvoke: (_) {
+            _goTo(_index + 1);
+            return null;
+          },
+        ),
+        _PreviousProjectIntent: CallbackAction<_PreviousProjectIntent>(
+          onInvoke: (_) {
+            _goTo(_index - 1);
+            return null;
+          },
+        ),
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: widget.viewportHeight,
+            child: PageView.builder(
+              key: ProjectCarousel.pageViewKey,
+              controller: _pages,
+              itemCount: widget.projects.length,
+              onPageChanged: _onPageChanged,
+              itemBuilder: (context, index) => Center(
+                child: ProjectCard(
+                  project: widget.projects[index],
+                  onSelect: widget.onSelect,
+                  autofocus: index == _index,
+                  focusNode: _cardNodes[index],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Semantics(
+            label: 'Project ${_index + 1} of ${widget.projects.length}',
+            child: ExcludeSemantics(
+              child: SizedBox(
+                key: ProjectCarousel.dotsKey,
+                width: 160,
+                height: 18,
+                child: CustomPaint(
+                  painter: _PageDotsPainter(
+                    count: widget.projects.length,
+                    active: _index,
+                    ink: AppColors.inkPrimary,
+                    accent: AppColors.accentWarm,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Hand-drawn page dots: wobbly ellipses, the active one filled with the
+/// warm accent. No animation controller — cheap on a low-end TV (§2.3.3).
+class _PageDotsPainter extends CustomPainter {
+  const _PageDotsPainter({
+    required this.count,
+    required this.active,
+    required this.ink,
+    required this.accent,
+  });
+
+  final int count;
+  final int active;
+  final Color ink;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final spacing = size.width / (count + 1);
+
+    for (var i = 0; i < count; i++) {
+      final isActive = i == active;
+      final center = Offset(
+        spacing * (i + 1),
+        size.height / 2 + (i.isEven ? 1 : -1),
+      );
+      final radius = isActive ? 6.0 : 4.0;
+      final path = Path();
+      const steps = 16;
+
+      for (var step = 0; step <= steps; step++) {
+        final angle = 2 * math.pi * step / steps;
+        final wobble = 1 + 0.08 * math.sin(3 * angle + i);
+        final point = center +
+            Offset(
+              math.cos(angle) * radius * wobble,
+              math.sin(angle) * radius * wobble,
+            );
+        if (step == 0) {
+          path.moveTo(point.dx, point.dy);
+        } else {
+          path.lineTo(point.dx, point.dy);
+        }
+      }
+
+      canvas.drawPath(
+        path..close(),
+        Paint()
+          ..color = isActive ? accent : ink.withValues(alpha: 0.4)
+          ..style = isActive ? PaintingStyle.fill : PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PageDotsPainter oldDelegate) =>
+      oldDelegate.count != count ||
+      oldDelegate.active != active ||
+      oldDelegate.ink != ink ||
+      oldDelegate.accent != accent;
+}
+
+========================================
+FILE: lib/widgets/rate_projects_prompt.dart
+========================================
+import 'package:flutter/material.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../theme/typography.dart';
+import './sketch_focus_frame.dart';
+
+/// The "Rate our projects?" card shown after a thank-you (§5.1).
+///
+/// Two focusable actions: **Yes** (→ rating) and **Skip** (→ idle). Render-
+/// only — I24 wires the callbacks and chooses when to show it. D-pad and
+/// touch share the same focus affordance as the emoji faces.
+class RateProjectsPrompt extends StatelessWidget {
+  const RateProjectsPrompt({
+    super.key,
+    required this.onYes,
+    required this.onSkip,
+    this.autofocusYes = false,
+  });
+
+  /// Invoked once when **Yes** is activated.
+  final VoidCallback onYes;
+
+  /// Invoked once when **Skip** is activated.
+  final VoidCallback onSkip;
+
+  /// Requests focus on **Yes** after the first frame (TV / I24).
+  final bool autofocusYes;
+
+  /// Stable key for a button's sketch focus frame.
+  static Key focusFrameKey(String label) =>
+      ValueKey('rate-prompt-focus-${label.toLowerCase()}');
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.paperWhite,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.md),
+        side: const BorderSide(color: AppColors.paperShadow, width: 2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Rate our projects?',
+              textAlign: TextAlign.center,
+              style: AppTypography.headline.copyWith(
+                color: AppColors.inkPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _PromptButton(
+                  label: 'Yes',
+                  onPressed: onYes,
+                  primary: true,
+                  autofocus: autofocusYes,
+                  focusKey: focusFrameKey('yes'),
+                ),
+                const SizedBox(width: AppSpacing.lg),
+                _PromptButton(
+                  label: 'Skip',
+                  onPressed: onSkip,
+                  focusKey: focusFrameKey('skip'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One prompt action: an `InkWell` (tap + Enter/Space + semantics) with a
+/// listener-driven sketch focus frame and a small pop. No bare gestures.
+class _PromptButton extends StatefulWidget {
+  const _PromptButton({
+    required this.label,
+    required this.onPressed,
+    required this.focusKey,
+    this.primary = false,
+    this.autofocus = false,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final Key focusKey;
+  final bool primary;
+  final bool autofocus;
+
+  @override
+  State<_PromptButton> createState() => _PromptButtonState();
+}
+
+class _PromptButtonState extends State<_PromptButton>
+    with SingleTickerProviderStateMixin {
+  final FocusNode _node = FocusNode();
+  late final AnimationController _frame = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+  );
+  bool _focused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _node.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _node.removeListener(_onFocusChange);
+    _frame.dispose();
+    _node.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!mounted) {
+      return;
+    }
+    if (_node.hasFocus) {
+      _frame.forward(from: 0);
+      setState(() => _focused = true);
+    } else {
+      _frame.value = 0;
+      setState(() => _focused = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final background =
+        widget.primary ? AppColors.accentWarm : AppColors.paperWhite;
+    final foreground =
+        widget.primary ? AppColors.paperWhite : AppColors.inkPrimary;
+
+    return Semantics(
+      button: true,
+      label: widget.label,
+      onTap: widget.onPressed,
+      child: ExcludeSemantics(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedScale(
+              scale: _focused ? 1.05 : 1.0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutBack,
+              child: InkWell(
+                focusNode: _node,
+                autofocus: widget.autofocus,
+                onTap: widget.onPressed,
+                borderRadius: BorderRadius.circular(AppSpacing.md),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl,
+                    vertical: AppSpacing.md,
+                  ),
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(AppSpacing.md),
+                    border: Border.all(
+                      color:
+                          widget.primary ? background : AppColors.inkPrimary,
+                      width: 2,
+                    ),
+                  ),
+                  child: Text(
+                    widget.label,
+                    style: AppTypography.body.copyWith(color: foreground),
+                  ),
+                ),
+              ),
+            ),
+            if (_focused)
+              Positioned(
+                left: -AppSpacing.xs,
+                top: -AppSpacing.xs,
+                right: -AppSpacing.xs,
+                bottom: -AppSpacing.xs,
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    key: widget.focusKey,
+                    painter: SketchFocusFramePainter(
+                      progress: _frame,
+                      color: AppColors.accentWarm,
+                      strokeWidth: 2.5,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+========================================
+FILE: lib/widgets/rating_widget.dart
+========================================
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+
+class _IncrementScoreIntent extends Intent {
+  const _IncrementScoreIntent();
+}
+
+class _DecrementScoreIntent extends Intent {
+  const _DecrementScoreIntent();
+}
+
+/// Five hand-drawn stars for rating a showcase project 1–5 (§10.7, §5.1).
+///
+/// Tapping a star draws it in and scores that many stars; D-pad left/right
+/// adjusts the score (clamped, so the ends are no-ops). Internal state keeps
+/// the widget reusable; [onChanged] lets the I28 controller observe it.
+class RatingWidget extends StatefulWidget {
+  const RatingWidget({
+    super.key,
+    this.initialScore = 0,
+    this.onChanged,
+    this.autofocusFirst = false,
+  });
+
+  /// Starting score; 0 means "not rated yet".
+  final int initialScore;
+
+  /// Called once whenever the score actually changes.
+  final ValueChanged<int>? onChanged;
+
+  /// Focus the first star after the first frame (TV / I29).
+  final bool autofocusFirst;
+
+  static const starCount = 5;
+
+  @override
+  State<RatingWidget> createState() => _RatingWidgetState();
+}
+
+class _RatingWidgetState extends State<RatingWidget> {
+  late int _score;
+  late final List<FocusNode> _nodes;
+
+  @override
+  void initState() {
+    super.initState();
+    _score = widget.initialScore.clamp(0, RatingWidget.starCount);
+    _nodes = List.generate(
+      RatingWidget.starCount,
+      (_) => FocusNode(debugLabel: 'rating-star'),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final node in _nodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  void _setScore(int value) {
+    final next = value.clamp(0, RatingWidget.starCount);
+    if (next == _score) {
+      return;
+    }
+    setState(() => _score = next);
+    widget.onChanged?.call(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: 'Rating: $_score of ${RatingWidget.starCount}',
+      child: FocusableActionDetector(
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.arrowRight):
+              _IncrementScoreIntent(),
+          SingleActivator(LogicalKeyboardKey.arrowLeft):
+              _DecrementScoreIntent(),
+        },
+        actions: {
+          _IncrementScoreIntent: CallbackAction<_IncrementScoreIntent>(
+            onInvoke: (_) {
+              _setScore(_score + 1);
+              return null;
+            },
+          ),
+          _DecrementScoreIntent: CallbackAction<_DecrementScoreIntent>(
+            onInvoke: (_) {
+              _setScore(_score - 1);
+              return null;
+            },
+          ),
+        },
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Five 88dp stars need 440dp; a 360dp phone cannot fit them.
+            final raw = (constraints.maxWidth - AppSpacing.sm * 4) / 5;
+            final starSize = raw.isFinite
+                ? raw.clamp(56.0, 88.0).toDouble()
+                : 88.0;
+
+            return SizedBox(
+              // §5.5: a focusable control must be at least 120dp tall on TV.
+              height: 120,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  for (var star = 1; star <= RatingWidget.starCount; star++)
+                    _SketchStar(
+                      number: star,
+                      size: starSize,
+                      selected: _score >= star,
+                      onTap: () => _setScore(star),
+                      focusNode: _nodes[star - 1],
+                      autofocus: widget.autofocusFirst && star == 1,
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// One star: a progressive sketch draw-in plus an elastic selection pop.
+class _SketchStar extends StatefulWidget {
+  const _SketchStar({
+    required this.number,
+    required this.size,
+    required this.selected,
+    required this.onTap,
+    required this.focusNode,
+    this.autofocus = false,
+  });
+
+  final int number;
+  final double size;
+  final bool selected;
+  final VoidCallback onTap;
+  final FocusNode focusNode;
+  final bool autofocus;
+
+  @override
+  State<_SketchStar> createState() => _SketchStarState();
+}
+
+class _SketchStarState extends State<_SketchStar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _draw = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+  );
+  late final Animation<double> _progress = CurvedAnimation(
+    parent: _draw,
+    curve: Curves.easeOut,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.selected) {
+      _draw.value = 1;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _SketchStar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected == oldWidget.selected) {
+      return;
+    }
+    if (widget.selected) {
+      _draw.forward(from: 0);
+    } else {
+      _draw.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _draw.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Rate ${widget.number} stars',
+      selected: widget.selected,
+      onTap: widget.onTap,
+      child: ExcludeSemantics(
+        child: AnimatedScale(
+          scale: widget.selected ? 1.08 : 1.0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.elasticOut,
+          child: SizedBox.square(
+            dimension: widget.size,
+            child: InkWell(
+              focusNode: widget.focusNode,
+              autofocus: widget.autofocus,
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(AppSpacing.sm),
+              child: CustomPaint(
+                painter: _StarPainter(
+                  progress: _progress.value,
+                  ink: AppColors.inkPrimary,
+                  gold: AppColors.idleGlow,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Draws a wobbly five-point star with a faint second pencil pass.
+class _StarPainter extends CustomPainter {
+  const _StarPainter({
+    required this.progress,
+    required this.ink,
+    required this.gold,
+  });
+
+  final double progress;
+  final Color ink;
+  final Color gold;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = _starPath(size);
+
+    // Every star is visible, selected or not — only the gold fill draws in.
+    canvas.save();
+    canvas.translate(1, 1);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = ink.withValues(alpha: 0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.restore();
+
+    if (progress > 0) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = gold.withValues(alpha: 0.55 * progress)
+          ..style = PaintingStyle.fill,
+      );
+
+      // A fat pencil stroke walks around the star, filling it in.
+      final fill = Paint()
+        ..color = gold
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.shortestSide * 0.16
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      for (final metric in path.computeMetrics()) {
+        canvas.drawPath(
+          metric.extractPath(0, metric.length * progress),
+          fill,
+        );
+      }
+    }
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  Path _starPath(Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final outer = size.shortestSide * 0.44;
+    final inner = outer * 0.45;
+    final path = Path();
+
+    for (var i = 0; i < 10; i++) {
+      final angle = -math.pi / 2 + i * math.pi / 5;
+      final radius = i.isEven ? outer : inner;
+      final wobble = 1 + 0.04 * math.sin(i * 2.7);
+      final point = center +
+          Offset(
+            math.cos(angle) * radius * wobble,
+            math.sin(angle) * radius * wobble,
+          );
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    return path..close();
+  }
+
+  @override
+  bool shouldRepaint(covariant _StarPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.ink != ink ||
+      oldDelegate.gold != gold;
+}
+
+========================================
+FILE: lib/widgets/sketch_animation.dart
+========================================
+import 'package:flutter/material.dart';
+
+/// An injectable animated-visual backend (I30, §5.1).
+///
+/// Every backend must be able to render the supplied [fallback] painter —
+/// a kiosk must never show a broken or empty animation asset.
+abstract interface class SketchAnimationBackend {
+  Widget build(
+    BuildContext context, {
+    required Widget fallback,
+    required bool active,
+  });
+}
+
+/// Pure no-op: renders the painter unchanged. Use in tests and anywhere an
+/// animation is not wanted (no loaders, no tickers, no timers).
+final class NoOpSketchAnimationBackend implements SketchAnimationBackend {
+  const NoOpSketchAnimationBackend();
+
+  @override
+  Widget build(
+    BuildContext context, {
+    required Widget fallback,
+    required bool active,
+  }) =>
+      fallback;
+}
+
+/// The production default while real `.riv` art is unavailable: the
+/// hand-drawn painter itself gets a small animated response to `active`.
+final class FallbackSketchAnimationBackend implements SketchAnimationBackend {
+  const FallbackSketchAnimationBackend();
+
+  @override
+  Widget build(
+    BuildContext context, {
+    required Widget fallback,
+    required bool active,
+  }) {
+    return AnimatedScale(
+      scale: active ? 1.06 : 1.0,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutBack,
+      child: AnimatedOpacity(
+        opacity: active ? 1 : 0.85,
+        duration: const Duration(milliseconds: 250),
+        child: fallback,
+      ),
+    );
+  }
+}
+
+/// A sketch visual with two states and a guaranteed `CustomPainter` fallback.
+///
+/// The backend is injected so tests can be hermetic and a missing or broken
+/// `.riv` asset can never leave a blank kiosk screen.
+class SketchAnimation extends StatelessWidget {
+  const SketchAnimation({
+    super.key,
+    required this.painter,
+    this.backend = const FallbackSketchAnimationBackend(),
+    this.active = false,
+    this.fallbackKey,
+    this.size,
+  });
+
+  /// The always-available hand-drawn visual.
+  final CustomPainter painter;
+
+  /// How the visual is animated; defaults to the painter fallback.
+  final SketchAnimationBackend backend;
+
+  /// Current state (e.g. a selected face or a waving character).
+  final bool active;
+
+  /// Key preserved on the fallback painter for existing component tests.
+  final Key? fallbackKey;
+
+  /// Optional square size constraint.
+  final double? size;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget fallback = CustomPaint(key: fallbackKey, painter: painter);
+    if (size != null) {
+      fallback = SizedBox.square(dimension: size!, child: fallback);
+    }
+
+    try {
+      return backend.build(context, fallback: fallback, active: active);
+    } catch (_) {
+      // A hostile/buggy backend cannot break the kiosk.
+      return fallback;
+    }
+  }
+}
+
+========================================
+FILE: lib/widgets/sketch_focus_frame.dart
+========================================
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+/// Draws the sketch focus frame as two jittered pencil passes that "write"
+/// themselves in as [progress] runs from 0 to 1 (§5.1, §2.3.2).
+///
+/// Deliberately in-house: `rough_notation`'s autoplay timer calls
+/// `AnimationController.forward()` after dispose when focus moves quickly,
+/// which is a real race on a D-pad. This painter owns no timers — its owner
+/// supplies the [Animation] (normally an `AnimationController`).
+///
+/// Shared by the emoji faces (I19) and the rating prompt (I23) so every
+/// focusable kiosk control has the same unmistakable focus affordance.
+class SketchFocusFramePainter extends CustomPainter {
+  SketchFocusFramePainter({
+    required this.progress,
+    required this.color,
+    required this.strokeWidth,
+  }) : super(repaint: progress);
+
+  final Animation<double> progress;
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = progress.value;
+    if (t <= 0) {
+      return;
+    }
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // Two passes, different jitter — a box drawn twice by hand.
+    for (final seed in const [7, 23]) {
+      final path = _jitteredRect(size, seed);
+      for (final metric in path.computeMetrics()) {
+        canvas.drawPath(metric.extractPath(0, metric.length * t), paint);
+      }
+    }
+  }
+
+  Path _jitteredRect(Size size, int seed) {
+    final random = math.Random(seed);
+    Offset corner(double x, double y) => Offset(
+          x + random.nextDouble() * 5 - 2.5,
+          y + random.nextDouble() * 5 - 2.5,
+        );
+
+    final topLeft = corner(0, 0);
+    final topRight = corner(size.width, 0);
+    final bottomRight = corner(size.width, size.height);
+    final bottomLeft = corner(0, size.height);
+
+    return Path()
+      ..moveTo(topLeft.dx, topLeft.dy)
+      ..lineTo(topRight.dx, topRight.dy)
+      ..lineTo(bottomRight.dx, bottomRight.dy)
+      ..lineTo(bottomLeft.dx, bottomLeft.dy)
+      ..close();
+  }
+
+  @override
+  bool shouldRepaint(covariant SketchFocusFramePainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.strokeWidth != strokeWidth;
+}
+
+========================================
+FILE: lib/widgets/thank_you_card.dart
+========================================
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
+import '../theme/colors.dart';
+import '../theme/spacing.dart';
+import '../theme/typography.dart';
+import './sketch_animation.dart';
+
+/// The success moment: a doodled character waves while a speech bubble
+/// scribbles "Thank you!" — PROJECT_PROCESS.md §5.1.
+///
+/// Render-only (I24 chooses when to show it from `FeedbackSuccess`). The
+/// whole visual is one semantic node so a screen reader hears the message
+/// once. Rive replaces the hand-drawn character at I30; until then there
+/// is no asset to fail to load on a kiosk.
+class ThankYouCard extends StatelessWidget {
+  const ThankYouCard({
+    super.key,
+    this.animationBackend = const NoOpSketchAnimationBackend(),
+  });
+
+  /// Injectable animation backend; the painter is always the fallback.
+  final SketchAnimationBackend animationBackend;
+
+  static const message = 'Thank you!';
+  static const bubbleKey = Key('thank_you_bubble');
+  static const characterKey = Key('thank_you_character');
+
+  static const double _cardWidth = 240;
+  static const double _cardHeight = 220;
+  static const double _bubbleHeight = 88;
+  static const double _characterSize = 120;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: message,
+      child: ExcludeSemantics(
+        child: SizedBox(
+          width: _cardWidth,
+          height: _cardHeight,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: _bubbleHeight,
+                child: CustomPaint(
+                  key: bubbleKey,
+                  painter: _SpeechBubblePainter(
+                    ink: AppColors.inkPrimary,
+                    paper: AppColors.paperWhite,
+                  ),
+                  child: const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: AppTypography.headline,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                child: SizedBox.square(
+                  dimension: _characterSize,
+                  child: SketchAnimation(
+                    painter: _CharacterPainter(
+                      ink: AppColors.inkPrimary,
+                      paper: AppColors.paperWhite,
+                      blush: AppColors.accentBlush,
+                      wave: AppColors.accentWarm,
+                    ),
+                    backend: animationBackend,
+                    active: true,
+                    fallbackKey: characterKey,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        )
+            .animate()
+            .fadeIn(duration: 500.ms, curve: Curves.easeOut)
+            .scaleXY(
+              begin: 0.9,
+              end: 1,
+              duration: 600.ms,
+              curve: Curves.easeOutBack,
+            )
+            .slideY(begin: 0.08, end: 0, duration: 500.ms),
+      ),
+    );
+  }
+}
+
+/// Wobbly speech bubble with a tail pointing down at the character.
+class _SpeechBubblePainter extends CustomPainter {
+  const _SpeechBubblePainter({required this.ink, required this.paper});
+
+  final Color ink;
+  final Color paper;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bubble = _bubblePath(size);
+
+    canvas.drawPath(
+      bubble,
+      Paint()..color = paper..style = PaintingStyle.fill,
+    );
+
+    // A faint offset second pass keeps the outline hand-drawn.
+    canvas.save();
+    canvas.translate(1.5, 1);
+    canvas.drawPath(
+      bubble,
+      Paint()
+        ..color = ink.withValues(alpha: 0.28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.restore();
+
+    canvas.drawPath(
+      bubble,
+      Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  Path _bubblePath(Size size) {
+    final w = size.width;
+    final bottom = size.height - 12; // leave room for the tail
+    return Path()
+      ..moveTo(20, 5)
+      ..lineTo(w - 22, 7)
+      ..quadraticBezierTo(w - 3, 8, w - 5, 24)
+      ..lineTo(w - 7, bottom - 20)
+      ..quadraticBezierTo(w - 9, bottom - 2, w - 26, bottom - 4)
+      ..lineTo(w * 0.58, bottom - 4)
+      ..lineTo(w * 0.52, bottom + 10)
+      ..lineTo(w * 0.46, bottom - 4)
+      ..lineTo(24, bottom - 4)
+      ..quadraticBezierTo(4, bottom - 6, 5, bottom - 24)
+      ..lineTo(3, 24)
+      ..quadraticBezierTo(4, 6, 20, 5)
+      ..close();
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpeechBubblePainter oldDelegate) =>
+      oldDelegate.ink != ink || oldDelegate.paper != paper;
+}
+
+/// Simple waving stick character — ink strokes, paper fill, warm cheeks.
+class _CharacterPainter extends CustomPainter {
+  const _CharacterPainter({
+    required this.ink,
+    required this.paper,
+    required this.blush,
+    required this.wave,
+  });
+
+  final Color ink;
+  final Color paper;
+  final Color blush;
+  final Color wave;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centerX = size.width / 2;
+
+    final stroke = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // Head.
+    final head = Offset(centerX, size.height * 0.27);
+    final radius = size.width * 0.18;
+    canvas.drawCircle(
+      head,
+      radius,
+      Paint()..color = paper..style = PaintingStyle.fill,
+    );
+    canvas.drawCircle(head, radius, stroke);
+
+    // Eyes + smile.
+    final eyeY = head.dy - radius * 0.1;
+    canvas.drawCircle(
+      head.translate(-radius * 0.36, 0),
+      2.2,
+      Paint()..color = ink..style = PaintingStyle.fill,
+    );
+    canvas.drawCircle(
+      head.translate(radius * 0.36, 0),
+      2.2,
+      Paint()..color = ink..style = PaintingStyle.fill,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(head.dx - radius * 0.4, eyeY + radius * 0.35)
+        ..quadraticBezierTo(
+          head.dx,
+          eyeY + radius * 0.85,
+          head.dx + radius * 0.4,
+          eyeY + radius * 0.35,
+        ),
+      stroke,
+    );
+
+    // Cheeks.
+    final cheek = Paint()
+      ..color = blush.withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+      head.translate(-radius * 0.72, radius * 0.35),
+      3.4,
+      cheek,
+    );
+    canvas.drawCircle(
+      head.translate(radius * 0.72, radius * 0.35),
+      3.4,
+      cheek,
+    );
+
+    // Body, legs and the raised waving arm.
+    final shoulder = Offset(centerX, size.height * 0.52);
+    canvas.drawPath(
+      Path()
+        ..moveTo(shoulder.dx, shoulder.dy)
+        ..quadraticBezierTo(
+          shoulder.dx + 3,
+          size.height * 0.66,
+          shoulder.dx,
+          size.height * 0.76,
+        ),
+      stroke,
+    );
+    canvas.drawLine(
+      shoulder,
+      Offset(centerX - size.width * 0.22, size.height * 0.66),
+      stroke,
+    );
+    canvas.drawLine(
+      shoulder,
+      Offset(centerX + size.width * 0.26, size.height * 0.38),
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(centerX, size.height * 0.76),
+      Offset(centerX - size.width * 0.14, size.height * 0.94),
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(centerX, size.height * 0.76),
+      Offset(centerX + size.width * 0.14, size.height * 0.94),
+      stroke,
+    );
+
+    // Little motion strokes around the waving hand.
+    final motion = Paint()
+      ..color = wave
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    final handX = centerX + size.width * 0.26;
+    final handY = size.height * 0.38;
+    for (final offset in const [-7.0, 0.0, 7.0]) {
+      canvas.drawLine(
+        Offset(handX + offset, handY - 6),
+        Offset(handX + offset + 2, handY - 12),
+        motion,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CharacterPainter oldDelegate) =>
+      oldDelegate.ink != ink ||
+      oldDelegate.paper != paper ||
+      oldDelegate.blush != blush ||
+      oldDelegate.wave != wave;
+}
+
