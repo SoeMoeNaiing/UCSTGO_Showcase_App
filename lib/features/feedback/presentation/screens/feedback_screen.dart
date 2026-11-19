@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/attract_overlay.dart';
+import '../../../../core/widgets/cooldown_screen.dart';
 import '../../../../core/widgets/kiosk_scaffold.dart';
 import '../../domain/entities/emoji_choice.dart';
 import '../controllers/feedback_controller.dart';
@@ -112,12 +114,10 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
           ),
         ),
       FeedbackSuccess() => const Center(child: ThankYouCard()),
-      FeedbackCooldown() => Center(
-          child: Text(
-            state.message,
-            textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: AppColors.inkPrimary),
-          ),
+      FeedbackCooldown() => CooldownScreen(
+          remaining: ref.watch(feedbackCooldownRemainingProvider),
+          onExpiry: _reset,
+          message: state.message,
         ),
       FeedbackError() => Center(
           child: Column(

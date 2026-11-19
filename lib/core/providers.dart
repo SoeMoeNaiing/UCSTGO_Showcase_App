@@ -33,6 +33,19 @@ final cooldownServiceProvider = Provider<CooldownService>(
   (ref) => CooldownService(storage: const SharedPreferencesCooldownStorage()),
 );
 
+/// Live countdowns for the I32 cooldown screens; tests override the streams.
+/// A plain Provider caches the single stream instance (remaining() is an
+/// async generator, so creating one per rebuild would restart the countdown).
+final feedbackCooldownRemainingProvider = Provider<Stream<Duration>>((ref) {
+  return ref
+      .watch(cooldownServiceProvider)
+      .remaining(CooldownAction.feedback);
+});
+
+final ratingCooldownRemainingProvider = Provider<Stream<Duration>>((ref) {
+  return ref.watch(cooldownServiceProvider).remaining(CooldownAction.rating);
+});
+
 final feedbackRepositoryProvider = Provider<FeedbackRepository>((ref) {
   final database = ref.watch(appDatabaseProvider);
   return FeedbackRepositoryImpl(

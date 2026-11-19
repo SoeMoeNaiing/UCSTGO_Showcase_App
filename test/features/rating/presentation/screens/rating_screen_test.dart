@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ucstgo_showcase_flutter_app/app.dart';
+import 'package:ucstgo_showcase_flutter_app/core/providers.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
 import 'package:ucstgo_showcase_flutter_app/core/router/app_router.dart';
@@ -41,6 +44,7 @@ class _FakeSubmitter implements RatingSubmitter {
 /// Iteration 29 — RatingScreen E2E (§10.7, milestone M5).
 void main() {
   late _FakeSubmitter submitter;
+  late StreamController<Duration> cooldown;
 
   Widget host({String initialLocation = '/rating'}) {
     final router = createAppRouter(initialLocation: initialLocation);
@@ -51,12 +55,20 @@ void main() {
         feedbackSubmitterProvider.overrideWith(
           (ref) => _FakeFeedbackSubmitter(),
         ),
+        ratingCooldownRemainingProvider.overrideWith(
+          (ref) => cooldown.stream,
+        ),
       ],
       child: KioskApp(router: router),
     );
   }
 
-  setUp(() => submitter = _FakeSubmitter());
+  setUp(() {
+    submitter = _FakeSubmitter();
+    cooldown = StreamController<Duration>.broadcast();
+  });
+
+  tearDown(() => cooldown.close());
 
   Future<void> selectFirstProject(WidgetTester tester) async {
     // The selected view (card + stars + submit) is taller than 600px.
@@ -165,7 +177,9 @@ void main() {
         expect(find.byType(RatingWidget), findsNothing);
         expect(find.byKey(RatingScreen.submitKey), findsNothing);
 
-        await tester.tap(find.text('Done'));
+        // I32: the designed cooldown auto-returns when the clock hits zero.
+        cooldown.add(Duration.zero);
+        await tester.pump();
         await tester.pumpAndSettle();
         expect(find.byType(ProjectCarousel), findsOneWidget);
       } finally {

@@ -922,9 +922,10 @@ Every implementation message follows this exact template:
 - **Tests:** widget test with fake time — after 20s idle the overlay shows; input hides it; timer resets; no spurious trigger during active use.
 - **Done:** widget test green (20s default tunable per §13).
 
-#### Iteration 32 — Cooldown screen UI ⬜
+#### Iteration 32 — Cooldown screen UI ✅ (2026-11-19)
 
 - **Build:** designed "catch your breath" moment — doodled clock counting down `CooldownService.remaining` (§5.1), shown **instead of** disabled buttons; expiry returns to interactive/attract.
+- **Decision:** `CooldownScreen` is a pure widget driven by an injected `Stream<Duration>` (no service/platform dependency), with a doodled clock `CustomPainter` and a token-styled seconds readout. Two `StreamProvider<Duration>`s expose `CooldownService.remaining(CooldownAction.feedback/rating)`; widget tests override those streams. The feedback/rating screens render `CooldownScreen` **in place of** the picker/stars while the controller is in its cooldown state, and call `reset()` once when the stream hits zero or completes, returning to interaction. The existing I13 test already proves the deadline is persisted; the I32 gate adds a real-service stream test with fake storage.
 - **Files:** `lib/core/widgets/cooldown_screen.dart` (or feature-local) + wiring.
 - **Tests:** countdown text decrements; picker not visible during cooldown; expiry restores interaction; respects persisted deadline from Iteration 13.
 - **Done:** widget test green.

@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/attract_overlay.dart';
+import '../../../../core/widgets/cooldown_screen.dart';
 import '../../../../core/widgets/kiosk_scaffold.dart';
 import '../../../rating/presentation/controllers/rating_controller.dart';
 import '../../../rating/presentation/widgets/rating_widget.dart';
@@ -92,7 +93,11 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
       RatingSubmitting() => _status('Saving your rating…'),
       RatingCooldown() => KeyedSubtree(
           key: RatingScreen.statusKey,
-          child: _statusCopy(state.message),
+          child: CooldownScreen(
+            remaining: ref.watch(ratingCooldownRemainingProvider),
+            onExpiry: _done,
+            message: state.message,
+          ),
         ),
       RatingError() => KeyedSubtree(
           key: RatingScreen.statusKey,
