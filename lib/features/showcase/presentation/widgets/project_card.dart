@@ -16,6 +16,7 @@ class ProjectCard extends StatelessWidget {
     required this.project,
     required this.onSelect,
     this.autofocus = false,
+    this.focusNode,
   });
 
   /// Project shown on the card.
@@ -26,6 +27,10 @@ class ProjectCard extends StatelessWidget {
 
   /// Requests focus after the first frame (carousel / TV).
   final bool autofocus;
+
+  /// Optional externally owned focus node (the carousel moves focus to the
+  /// visible card). When null, `InkWell` owns its own node.
+  final FocusNode? focusNode;
 
   static const double cardWidth = 220;
   static const double cardHeight = 288;
@@ -44,6 +49,7 @@ class ProjectCard extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             InkWell(
+              focusNode: focusNode,
               autofocus: autofocus,
               onTap: _select,
               borderRadius: BorderRadius.circular(AppSpacing.sm),

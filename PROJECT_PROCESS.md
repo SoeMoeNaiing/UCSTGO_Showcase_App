@@ -863,9 +863,10 @@ Every implementation message follows this exact template:
 - **Deps:** `fancy_rating_bar` evaluated later (I27); `sketchify` optional here for card entrance.
 - **Done:** widget test green.
 
-#### Iteration 26 — ProjectCarousel ⬜
+#### Iteration 26 — ProjectCarousel ✅ (2026-11-19)
 
 - **Build:** horizontal `PageView` (swipe on phone) plus focus next/prev hooks for D-pad; hand-drawn page-dots indicator.
+- **Decision:** the carousel owns a `PageController` plus one `FocusNode` per card (`ProjectCard` gains an optional external `focusNode`) so changing page **moves focus to the now-visible card** — a hidden focused card would be a focus trap. Arrow keys are custom `Intent`/`Action`s mapped to a clamped `_goTo` (right at the last page and left at the first are no-ops), registered on a `FocusableActionDetector` around the pager. The dots are a small `CustomPainter` of wobbly ellipses with a semantic label "Project n of N" so tests and screen readers can read the position. Tests use `tester.drag` for swipe and key events for D-pad; no new deps.
 - **Files:** `lib/features/showcase/presentation/widgets/project_carousel.dart`.
 - **Tests:** swipe changes page; focus-next advances index; dots update; no focus trap at list edges.
 - **Done:** widget test green.
