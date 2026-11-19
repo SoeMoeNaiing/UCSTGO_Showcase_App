@@ -69,9 +69,9 @@ Visitor taps emoji
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
 - **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
 - **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
-- **Phase 3 started:** `EmojiPicker`, `FeedbackController`, `SubmitFeedback`, `ThankYouCard`, `RateProjectsPrompt` — all feedback-flow components built; **194 tests**.
-- **Next:** Iteration 24 — full `FeedbackScreen` + `/feedback` route, E2E widget test → **M4**.
-- **Phone preview:** `flutter run` now boots the **temporary interactive picker harness** — tap, Enter/D-pad, focus frame, and the 2s throttle work on the device. The full `FeedbackScreen` lands at **Iteration 24**; rating at **I29**; polished offline release APK at **I33**.
+- **Phase 3 complete (M4):** full `FeedbackScreen` + `/feedback` router — picker → submit → thank-you → prompt → reset, with an E2E widget test and initial D-pad focus on the first face. The I19 preview harness is gone; `flutter run` boots the real flow. **197 tests**.
+- **Next:** Iteration 25 — `Project` entity + `ProjectCard` (Phase 4 rating flow).
+- **Phone preview:** `flutter run` (or the rebuilt `app-debug.apk`) now shows the **real feedback flow**: tap a face → thank-you → “Rate our projects?” → Skip returns to the picker. Rating arrives at **I29**; polished offline release APK at **I33**.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.
@@ -104,4 +104,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 24:** full `FeedbackScreen` assembly + E2E widget test — picker → submit → thank-you → prompt → cooldown, with the `/feedback` route. **This is the first real screen you can preview in the app.** See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 25:** `Project` entity + `ProjectCard` — the showcase project model and its polaroid-style card; **Phase 4 (rating flow)** begins. See [§10.7 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀

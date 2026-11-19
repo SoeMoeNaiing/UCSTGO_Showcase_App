@@ -777,12 +777,14 @@ Every implementation message follows this exact template:
 - **Tests:** each trigger → exactly one sync; concurrent triggers coalesce; no sync attempt while offline; periodic timer ticks correctly under `fakeAsync`; nudge debounce; dispose stops all triggers.
 - **Done:** tests green → **M3**.
 
-### 10.6 Phase 3 — Feedback Flow UI (Iterations 18–24)
+### 10.6 Phase 3 — Feedback Flow UI (Iterations 18–24) ✅
 
 **Goal:** the complete visitor feedback experience — phone-first, but D-pad-ready from the first pixel (§2.3.2).
 **Entry gate:** M3 confirmed.
 **Exit gate:** end-to-end widget test proves emoji → submit → thank-you → prompt; every interactive widget uses focusable components (no `GestureDetector`-only).
 **Deliverables:** `EmojiPicker`, focus/select interaction, `FeedbackController`, `SubmitFeedback` use case, `ThankYouCard`, `RateProjectsPrompt`, `FeedbackScreen`, `go_router` wiring.
+
+**Milestone M4 reached ✅ (2026-11-19):** 197/197 tests green, `flutter analyze` clean, debug APK rebuilt. The app now boots straight into the real `/feedback` flow — three sketch faces → local-first submit → thank-you → rating prompt → reset. The E2E test drives the entire flow with only the submitter seam faked, initial focus lands on the happy face, and the temporary I19 preview harness is retired. Still zero backend required.
 
 #### Iteration 18 — Static EmojiPicker ✅ (2026-11-18)
 
@@ -801,7 +803,7 @@ Every implementation message follows this exact template:
 - **Deps:** none — built-ins only (see Decision).
 - **Done:** widget tests green.
 
-> **Temporary preview checkpoint (2026-11-18 → deleted at I24):** `main.dart` boots into a throwaway `FeedbackPreviewScreen` (`KioskScaffold` + title + `EmojiPicker` + a "You picked" echo) so the interactive picker can be seen on a phone with `flutter run` immediately. Deliberately not the real flow: no repository, no controller, no router, nothing persisted. I24 replaces it with the real `FeedbackScreen` and deletes the file; the default counter screen is retired.
+> **Temporary preview checkpoint (2026-11-18 → retired at I24):** `main.dart` briefly booted into a throwaway `FeedbackPreviewScreen` so the I19 picker could be seen on a phone. It was deliberately inert (no repository, controller, or router) and has been **deleted at I24** in favour of the real `FeedbackScreen` + router.
 
 #### Iteration 20 — FeedbackController (Riverpod notifier) ✅ (2026-11-18)
 
@@ -836,9 +838,10 @@ Every implementation message follows this exact template:
 - **Tests:** Yes → `onYes` once; Skip → `onSkip` once; both reachable via focus traversal; focus frame only on the focused button; semantic buttons with tap actions.
 - **Done:** widget tests green.
 
-#### Iteration 24 — Full FeedbackScreen assembly + E2E widget test ⬜
+#### Iteration 24 — Full FeedbackScreen assembly + E2E widget test ✅ (2026-11-19)
 
 - **Build:** screen state machine (picker → success → thank-you → prompt → cooldown slot); `/feedback` route registered in `go_router`; all providers overridden in tests with a fake repository.
+- **Decision:** `FeedbackScreen` is a `ConsumerStatefulWidget` watching `feedbackControllerProvider`: idle/selecting/submitting → picker, success → `ThankYouCard`, then a local **injectable `thankYouDelay` (default 2s)** flips to `RateProjectsPrompt`; cooldown/error render the controller's user-facing message (the full cooldown UI is I32). **Yes** goes to a temporary `/rating` placeholder (I29 replaces it); **Skip** calls `controller.reset()`. The picker gets `autofocusFirst: true` so initial focus lands on the happy face. Widget tests override **the single `feedbackSubmitterProvider` seam** rather than the whole graph — the repository/use case are already unit-tested, and this avoids platform channels in the E2E. The timer is canceled on dispose and when the state leaves success.
 - **Files:** `lib/features/feedback/presentation/screens/feedback_screen.dart`, `lib/core/router/app_router.dart`, `lib/app.dart`. **Cleanup:** delete the temporary `feedback_preview_screen.dart` from the I19 preview checkpoint and point `main.dart` at the real router.
 - **Tests:** E2E widget test — tap emoji → submit called → thank-you appears → prompt appears → Skip returns to picker; initial focus lands on the first face.
 - **Deps:** `go_router`.
