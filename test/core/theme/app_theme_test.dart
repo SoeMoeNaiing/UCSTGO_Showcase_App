@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/theme/app_colors.dart';
-import 'package:ucstgo_showcase_flutter_app/core/theme/app_theme.dart';
-import 'package:ucstgo_showcase_flutter_app/core/theme/app_typography.dart';
+import 'package:ucstgo_showcase_flutter_app/theme/colors.dart';
+import 'package:ucstgo_showcase_flutter_app/theme/theme.dart';
+import 'package:ucstgo_showcase_flutter_app/theme/typography.dart';
 
 /// Iteration 5 — AppTheme composition guard (PROJECT_PROCESS.md §5).
 ///

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/data/fixtures/project_fixtures.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/domain/entities/project.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/presentation/widgets/project_card.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/presentation/widgets/project_carousel.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/project_fixtures.dart';
+import 'package:ucstgo_showcase_flutter_app/models/project.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/project_card.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/project_carousel.dart';
 
 /// Iteration 26 — ProjectCarousel gate (§10.7, §2.3.2).
 void main() {

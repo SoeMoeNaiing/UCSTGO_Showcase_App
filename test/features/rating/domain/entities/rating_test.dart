@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/rating.dart';
+import 'package:ucstgo_showcase_flutter_app/models/rating.dart';
 
 /// Iteration 8 — Rating entity invariants (PROJECT_PROCESS.md §6.1, §6.5).
 void main() {

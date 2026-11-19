@@ -177,88 +177,41 @@ These rules govern every decision. If a shortcut violates one, we don't take it.
 
 ## 4. Architecture
 
-### 4.1 Folder Structure (Canonical)
+### 4.1 Folder Structure (flattened at I33)
+
+The original feature-first tree was simplified to one flat directory per
+responsibility. All imports, architecture guards and docs were updated to
+match; behaviour and tests are unchanged (257 green).
 
 ```text
-showcase_app/                         # in this repo: ucstgo_showcase_flutter_app/
+ucstgo_showcase_flutter_app/
 ├── lib/
-│   ├── main.dart                     # Bootstraps ProviderScope, Supabase, app
-│   ├── app.dart                      # Root widget, router wiring
-│   │
-│   ├── core/                         # Shared across features
-│   │   ├── domain/                   # Shared pure-Dart contracts
-│   │   │   ├── sync_status.dart      # pending/synced/rejected/failed_permanent
-│   │   │   └── submission_result.dart # local-first submit outcome
-│   │   ├── theme/
-│   │   │   ├── app_colors.dart       # Color tokens
-│   │   │   ├── app_typography.dart   # Text style tokens
-│   │   │   ├── app_spacing.dart      # Spacing scale (4/8/12/16…)
-│   │   │   └── app_theme.dart        # Composed ThemeData
-│   │   ├── router/
-│   │   │   └── app_router.dart       # go_router config
-│   │   ├── widgets/                  # Reusable dumb widgets
-│   │   │   ├── sketch_button.dart
-│   │   │   ├── kiosk_scaffold.dart
-│   │   │   └── ...
-│   │   └── utils/                    # Pure helpers, extensions
-│   │
-│   ├── services/                     # App-wide singletons (Riverpod providers)
-│   │   ├── supabase_service.dart
-│   │   ├── device_id_service.dart
-│   │   ├── cooldown_service.dart
-│   │   ├── connectivity_service.dart # connectivity_plus + reachability probe
-│   │   ├── sync_service.dart         # Drains pending queue with backoff
-│   │   └── kiosk_service.dart
-│   │
-│   └── features/
-│       ├── feedback/
-│       │   ├── domain/
-│       │   │   ├── entities/
-│       │   │   │   ├── emoji_choice.dart
-│       │   │   │   └── feedback.dart          # includes clientId
-│       │   │   ├── repositories/
-│       │   │   │   └── feedback_repository.dart   # Abstract
-│       │   │   └── usecases/
-│       │   │       └── submit_feedback.dart
-│       │   ├── data/
-│       │   │   ├── models/
-│       │   │   │   └── feedback_model.dart        # JSON DTO
-│       │   │   ├── datasources/
-│       │   │   │   ├── feedback_remote_datasource.dart
-│       │   │   │   └── feedback_local_datasource.dart  # Drift CRUD
-│       │   │   ├── local/
-│       │   │   │   ├── app_database.dart           # Drift database class
-│       │   │   │   └── tables/
-│       │   │   │       ├── pending_feedback_table.dart
-│       │   │   │       └── pending_ratings_table.dart
-│       │   │   └── repositories/
-│       │   │       └── feedback_repository_impl.dart
-│       │   └── presentation/
-│       │       ├── screens/
-│       │       │   └── feedback_screen.dart
-│       │       ├── widgets/
-│       │       │   ├── emoji_picker.dart
-│       │       │   ├── thank_you_card.dart
-│       │       │   └── rate_projects_prompt.dart
-│       │       └── controllers/
-│       │           └── feedback_controller.dart   # Riverpod notifier
-│       ├── rating/                  # Same structure
-│       └── showcase/                # Same structure
-│
-├── test/                            # Mirrors lib/ structure
+│   ├── main.dart / app.dart         # Bootstrap (ProviderScope) + root router app
+│   ├── controllers/                 # Riverpod notifiers + submit use cases
+│   ├── database/                    # Drift database + queue tables (generated .g.dart)
+│   ├── models/                      # Pure-Dart domain contracts / entities / tokens
+│   ├── providers.dart               # Riverpod provider graph
+│   ├── repositories/                # Drift datasources, DTOs, repository interfaces + impls, fixtures
+│   ├── router/app_router.dart       # go_router config
+│   ├── screens/                     # FeedbackScreen, RatingScreen
+│   ├── services/                    # Device id, cooldown, connectivity, sync engine/scheduler
+│   ├── theme/                       # colors / spacing / typography / composed theme
+│   └── widgets/                     # Reusable kiosk widgets + feature widgets
+├── test/                            # Grouped by feature/layer for traceability
 │   ├── core/
 │   ├── services/
 │   └── features/
-├── integration_test/                # Phone E2E (Phase 5), TV E2E (Phase 7)
-├── supabase/                        # Edge Functions (Phase 6)
-│   └── functions/
-│       ├── submit-feedback/
-│       └── submit-rating/
+├── integration_test/                # Device E2E (I33), TV E2E (Phase 7)
+├── assets/rive/                     # Manual .riv art step (fallback painter is active)
+├── supabase/functions/              # Phase 6
 ├── android/
 ├── pubspec.yaml
 ├── analysis_options.yaml
-└── PROJECT_PROCESS.md               # This document
+└── PROJECT_PROCESS.md
 ```
+
+> Historical iteration cards below still mention the pre-I33 paths; the
+> folders were flattened without changing any class names or behaviour.
 
 ### 4.2 Layer Communication Rules
 

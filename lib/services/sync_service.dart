@@ -1,12 +1,12 @@
-import '../core/domain/sync_status.dart';
-import '../features/feedback/data/datasources/feedback_remote_datasource.dart';
-import '../features/feedback/data/models/feedback_model.dart';
-import '../features/feedback/domain/entities/queued_feedback.dart';
-import '../features/feedback/domain/repositories/feedback_repository.dart';
-import '../features/rating/data/datasources/rating_remote_datasource.dart';
-import '../features/rating/data/models/rating_model.dart';
-import '../features/rating/domain/entities/queued_rating.dart';
-import '../features/rating/domain/repositories/rating_repository.dart';
+import '../models/sync_status.dart';
+import '../repositories/feedback_remote_datasource.dart';
+import '../repositories/feedback_model.dart';
+import '../models/queued_feedback.dart';
+import '../repositories/feedback_repository.dart';
+import '../repositories/rating_remote_datasource.dart';
+import '../repositories/rating_model.dart';
+import '../models/queued_rating.dart';
+import '../repositories/rating_repository.dart';
 
 /// The scheduler's view of the sync engine.
 abstract interface class SyncRunner {

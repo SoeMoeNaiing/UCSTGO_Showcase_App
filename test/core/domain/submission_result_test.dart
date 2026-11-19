@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/models/submission_result.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
 
 /// Iteration 8 — SubmissionResult contract (PROJECT_PROCESS.md §6.4–§6.6).
 ///

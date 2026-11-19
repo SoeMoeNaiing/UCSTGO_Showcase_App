@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/local/app_database.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/database/app_database.dart';
 
 /// Iteration 9 — Drift queue durability (PROJECT_PROCESS.md §6.4, §6.6).
 ///

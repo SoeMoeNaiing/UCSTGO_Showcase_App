@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'core/router/app_router.dart';
-import 'core/theme/app_theme.dart';
+import './router/app_router.dart';
+import './theme/theme.dart';
 
 /// Root widget: theme + declarative router (§4.1, §10.6).
 ///

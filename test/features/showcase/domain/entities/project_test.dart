@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/data/fixtures/project_fixtures.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/domain/entities/project.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/project_fixtures.dart';
+import 'package:ucstgo_showcase_flutter_app/models/project.dart';
 
 /// Iteration 25 — Project entity + fixture invariants (§10.7, §6.1).
 void main() {

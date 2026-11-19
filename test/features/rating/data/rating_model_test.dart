@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/data/models/rating_model.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/rating.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_model.dart';
+import 'package:ucstgo_showcase_flutter_app/models/rating.dart';
 
 /// Iteration 28 — RatingModel wire contract (§6.1).
 void main() {

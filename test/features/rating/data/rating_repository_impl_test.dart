@@ -1,14 +1,14 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/remote_outcome.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/local/app_database.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/data/datasources/rating_local_datasource.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/data/datasources/rating_remote_datasource.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/data/models/rating_model.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/data/repositories/rating_repository_impl.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/rating.dart';
+import 'package:ucstgo_showcase_flutter_app/models/remote_outcome.dart';
+import 'package:ucstgo_showcase_flutter_app/models/submission_result.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/database/app_database.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_local_datasource.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_remote_datasource.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_model.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_repository_impl.dart';
+import 'package:ucstgo_showcase_flutter_app/models/rating.dart';
 
 class _FakeRemote implements RatingRemoteDataSource {
   RemoteOutcome outcome = RemoteOutcome.success;

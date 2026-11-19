@@ -18,20 +18,15 @@ void main() {
     ];
 
     final offenders = <String>[];
-    final features = Directory('lib/features');
+    final models = Directory('lib/models');
 
-    for (final feature in features.listSync().whereType<Directory>()) {
-      final domain = Directory('${feature.path}/domain');
-      if (!domain.existsSync()) continue;
+    for (final file in models.listSync(recursive: true).whereType<File>()) {
+      if (!file.path.endsWith('.dart')) continue;
 
-      for (final file in domain.listSync(recursive: true).whereType<File>()) {
-        if (!file.path.endsWith('.dart')) continue;
-
-        final source = file.readAsStringSync();
-        for (final import in forbidden) {
-          if (source.contains(import)) {
-            offenders.add('${file.path} → $import');
-          }
+      final source = file.readAsStringSync();
+      for (final import in forbidden) {
+        if (source.contains(import)) {
+          offenders.add('${file.path} → $import');
         }
       }
     }

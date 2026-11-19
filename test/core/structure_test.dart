@@ -4,42 +4,29 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Iteration 1 — Architecture structure test (PROJECT_PROCESS.md §4.1 & §4.3).
 ///
-/// Guards the canonical folder layout so feature work can never land in the
-/// wrong place: every layer directory must exist, and the test tree must mirror
-/// the lib tree by layer (domain / data / presentation / services / core).
+/// Guards the canonical folder layout. After the I33 simplification the lib
+/// tree is flat by responsibility: controllers / database / models /
+/// repositories / router / screens / services / theme / widgets.
 void main() {
-  /// The three feature stacks that each own domain → data → presentation.
-  const features = ['feedback', 'rating', 'showcase'];
-
-  /// The 11 canonical layer directories inside every feature (§4.1).
-  const featureLayers = [
-    'domain/entities',
-    'domain/repositories',
-    'domain/usecases',
-    'data/models',
-    'data/datasources',
-    'data/local',
-    'data/local/tables',
-    'data/repositories',
-    'presentation/screens',
-    'presentation/widgets',
-    'presentation/controllers',
-  ];
-
-  /// Shared core directories (§4.1).
-  const coreDirs = ['domain', 'theme', 'router', 'widgets', 'utils'];
-
-  /// The complete canonical lib/ tree, derived from the lists above.
-  final canonicalLibDirs = <String>[
-    for (final dir in coreDirs) 'lib/core/$dir',
+  /// Canonical lib/ directories after the flat refactor.
+  const canonicalLibDirs = <String>[
+    'lib/controllers',
+    'lib/database',
+    'lib/models',
+    'lib/repositories',
+    'lib/router',
+    'lib/screens',
     'lib/services',
-    for (final feature in features)
-      for (final layer in featureLayers) 'lib/features/$feature/$layer',
+    'lib/theme',
+    'lib/widgets',
   ];
 
-  /// Test placement per §4.3: tests mirror lib by layer, not file-for-file.
+  /// Tests remain grouped by feature/layer for traceability.
+  const features = ['feedback', 'rating', 'showcase'];
   final canonicalTestDirs = <String>[
-    for (final dir in coreDirs) 'test/core/$dir',
+    'test/core/domain',
+    'test/core/theme',
+    'test/core/widgets',
     'test/services',
     for (final feature in features)
       for (final layer in ['domain', 'data', 'presentation'])
@@ -56,11 +43,10 @@ void main() {
         isEmpty,
         reason: 'Missing canonical lib/ directories: $missing',
       );
-      // 5 core + 1 services + (3 features x 11 layers) = 39 directories.
-      expect(canonicalLibDirs, hasLength(39));
+      expect(canonicalLibDirs, hasLength(9));
     });
 
-    test('test/ mirrors lib/ by layer (§4.3)', () {
+    test('test groups are present by domain/data/presentation (§4.3)', () {
       final missing =
           canonicalTestDirs.where((p) => !Directory(p).existsSync()).toList();
 
@@ -70,7 +56,7 @@ void main() {
         reason: 'Missing test mirror directories: $missing',
       );
       // 5 core + 1 services + (3 features x 3 layers) = 15 directories.
-      expect(canonicalTestDirs, hasLength(15));
+      expect(canonicalTestDirs, hasLength(13));
     });
 
     test('process docs and tool configs are present at repo root', () {

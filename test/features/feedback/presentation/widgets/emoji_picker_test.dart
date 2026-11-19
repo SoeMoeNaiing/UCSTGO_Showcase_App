@@ -3,8 +3,8 @@ import 'dart:ui' show SemanticsAction;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/presentation/widgets/emoji_picker.dart';
+import 'package:ucstgo_showcase_flutter_app/models/emoji_choice.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/emoji_picker.dart';
 
 void _noop(EmojiChoice _) {}
 

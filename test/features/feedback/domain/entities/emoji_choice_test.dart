@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
+import 'package:ucstgo_showcase_flutter_app/models/emoji_choice.dart';
 
 /// Iteration 7 — EmojiChoice wire contract (PROJECT_PROCESS.md §6.1).
 void main() {

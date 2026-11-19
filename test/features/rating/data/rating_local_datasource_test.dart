@@ -1,9 +1,9 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/local/app_database.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/data/datasources/rating_local_datasource.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/rating.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/database/app_database.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_local_datasource.dart';
+import 'package:ucstgo_showcase_flutter_app/models/rating.dart';
 
 /// Iteration 28 — RatingLocalDataSource gate (§6.4, §6.6).
 ///

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'connectivity_service.dart';
-import 'sync_service.dart';
+import './connectivity_service.dart';
+import './sync_service.dart';
 
 /// Wires the four §6.4 sync triggers into one coalesced background sweep.
 ///

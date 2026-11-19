@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/theme/app_colors.dart';
-import 'package:ucstgo_showcase_flutter_app/core/widgets/sketch_animation.dart';
+import 'package:ucstgo_showcase_flutter_app/theme/colors.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/sketch_animation.dart';
 
 class _CirclePainter extends CustomPainter {
   const _CirclePainter();

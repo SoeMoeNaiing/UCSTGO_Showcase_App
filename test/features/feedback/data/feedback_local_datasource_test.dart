@@ -1,10 +1,10 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/datasources/feedback_local_datasource.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/local/app_database.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/feedback.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/feedback_local_datasource.dart';
+import 'package:ucstgo_showcase_flutter_app/database/app_database.dart';
+import 'package:ucstgo_showcase_flutter_app/models/emoji_choice.dart';
+import 'package:ucstgo_showcase_flutter_app/models/feedback.dart';
 
 /// Iteration 10 — FeedbackLocalDataSource gate (PROJECT_PROCESS.md §6.4, §6.6).
 ///

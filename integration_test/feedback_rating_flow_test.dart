@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:ucstgo_showcase_flutter_app/main.dart' as app;
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/presentation/widgets/emoji_picker.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/presentation/widgets/rate_projects_prompt.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/presentation/widgets/thank_you_card.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/presentation/screens/rating_screen.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/presentation/widgets/rating_widget.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/presentation/widgets/project_card.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/presentation/widgets/project_carousel.dart';
+import 'package:ucstgo_showcase_flutter_app/models/emoji_choice.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/emoji_picker.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/rate_projects_prompt.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/thank_you_card.dart';
+import 'package:ucstgo_showcase_flutter_app/screens/rating_screen.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/rating_widget.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/project_card.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/project_carousel.dart';
 
 /// Iteration 33 — real-device happy path with no backend attached.
 ///

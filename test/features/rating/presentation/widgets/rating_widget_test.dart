@@ -3,7 +3,7 @@ import 'dart:ui' show SemanticsAction, Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/presentation/widgets/rating_widget.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/rating_widget.dart';
 
 /// Iteration 27 — RatingWidget gate (§10.7, §5.5).
 void main() {

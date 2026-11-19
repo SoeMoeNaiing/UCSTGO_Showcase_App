@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/presentation/widgets/thank_you_card.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/thank_you_card.dart';
 
 /// Iteration 22 — ThankYouCard gate (PROJECT_PROCESS.md §5.1).
 ///

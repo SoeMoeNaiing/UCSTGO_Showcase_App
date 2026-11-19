@@ -1,18 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/datasources/feedback_remote_datasource.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/models/feedback_model.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/feedback.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/queued_feedback.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/repositories/feedback_repository.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/data/datasources/rating_remote_datasource.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/data/models/rating_model.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/queued_rating.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/rating.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/repositories/rating_repository.dart';
+import 'package:ucstgo_showcase_flutter_app/models/submission_result.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/feedback_remote_datasource.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/feedback_model.dart';
+import 'package:ucstgo_showcase_flutter_app/models/feedback.dart';
+import 'package:ucstgo_showcase_flutter_app/models/queued_feedback.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/feedback_repository.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_remote_datasource.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_model.dart';
+import 'package:ucstgo_showcase_flutter_app/models/queued_rating.dart';
+import 'package:ucstgo_showcase_flutter_app/models/rating.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_repository.dart';
 import 'package:ucstgo_showcase_flutter_app/services/sync_service.dart';
 
 typedef _Applied = ({

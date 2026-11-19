@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/identity_ports.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/queued_rating.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/rating.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/repositories/rating_repository.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/usecases/submit_rating.dart';
+import 'package:ucstgo_showcase_flutter_app/models/identity_ports.dart';
+import 'package:ucstgo_showcase_flutter_app/models/submission_result.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/models/queued_rating.dart';
+import 'package:ucstgo_showcase_flutter_app/models/rating.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/rating_repository.dart';
+import 'package:ucstgo_showcase_flutter_app/controllers/submit_rating.dart';
 
 class _FakeDeviceIds implements DeviceIdReader {
   String value = 'device-42';

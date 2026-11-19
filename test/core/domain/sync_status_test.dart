@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
 
 /// Iteration 8 — SyncStatus vocabulary (PROJECT_PROCESS.md §6.6).
 void main() {

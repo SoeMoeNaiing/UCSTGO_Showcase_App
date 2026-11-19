@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/theme/app_colors.dart';
-import 'package:ucstgo_showcase_flutter_app/core/theme/app_spacing.dart';
-import 'package:ucstgo_showcase_flutter_app/core/theme/app_typography.dart';
+import 'package:ucstgo_showcase_flutter_app/theme/colors.dart';
+import 'package:ucstgo_showcase_flutter_app/theme/spacing.dart';
+import 'package:ucstgo_showcase_flutter_app/theme/typography.dart';
 
 /// Iteration 4 — Design token guard (PROJECT_PROCESS.md §5.2–§5.4).
 ///
@@ -54,7 +54,7 @@ void main() {
 
       for (final entity in Directory('lib').listSync(recursive: true)) {
         if (entity is! File) continue;
-        if (entity.path.endsWith('app_colors.dart')) continue; // the one file
+        if (entity.path.endsWith('colors.dart')) continue; // the one file
         if (entity.readAsStringSync().contains('0xFF')) {
           offenders.add(entity.path);
         }

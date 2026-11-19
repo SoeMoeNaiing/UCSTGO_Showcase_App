@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/feedback.dart';
+import 'package:ucstgo_showcase_flutter_app/models/emoji_choice.dart';
+import 'package:ucstgo_showcase_flutter_app/models/feedback.dart';
 
 /// Iteration 7 — Feedback entity invariants (PROJECT_PROCESS.md §6.5).
 void main() {

@@ -3,7 +3,7 @@ import 'dart:ui' show SemanticsAction;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/presentation/widgets/rate_projects_prompt.dart';
+import 'package:ucstgo_showcase_flutter_app/widgets/rate_projects_prompt.dart';
 
 /// Iteration 23 — RateProjectsPrompt gate (PROJECT_PROCESS.md §5.1, §2.3.2).
 ///

@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/datasources/feedback_remote_datasource.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/data/models/feedback_model.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
-import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/feedback.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/feedback_remote_datasource.dart';
+import 'package:ucstgo_showcase_flutter_app/repositories/feedback_model.dart';
+import 'package:ucstgo_showcase_flutter_app/models/emoji_choice.dart';
+import 'package:ucstgo_showcase_flutter_app/models/feedback.dart';
 
 /// Iteration 15 — wire DTO + §6.6 outcome table.
 ///

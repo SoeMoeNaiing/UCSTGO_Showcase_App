@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
-import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/domain/usecases/submit_rating.dart';
-import 'package:ucstgo_showcase_flutter_app/features/rating/presentation/controllers/rating_controller.dart';
+import 'package:ucstgo_showcase_flutter_app/models/submission_result.dart';
+import 'package:ucstgo_showcase_flutter_app/models/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/controllers/submit_rating.dart';
+import 'package:ucstgo_showcase_flutter_app/controllers/rating_controller.dart';
 
 class _FakeSubmitter implements RatingSubmitter {
   SubmissionResult result = const SubmissionAccepted(SyncStatus.pending);
