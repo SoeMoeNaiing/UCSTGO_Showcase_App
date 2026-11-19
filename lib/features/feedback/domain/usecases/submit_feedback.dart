@@ -1,27 +1,18 @@
+import 'package:ucstgo_showcase_flutter_app/core/domain/identity_ports.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
+
+export 'package:ucstgo_showcase_flutter_app/core/domain/identity_ports.dart';
 
 import '../entities/emoji_choice.dart';
 import '../entities/feedback.dart';
 import '../repositories/feedback_repository.dart';
 
-/// Anonymous device identity needed by the submit path (§6.3).
-///
-/// Implemented by an adapter over `DeviceIdService` in the wiring layer;
-/// the domain never imports `shared_preferences` (§4.2).
-abstract interface class DeviceIdReader {
-  Future<String> read();
-}
-
-/// Starts the post-submit cooldown (§7 layer 1).
-///
-/// Implemented by an adapter over `CooldownService` in the wiring layer.
+/// Starts the post-submit cooldown (§7 layer 1), implemented in the wiring
+/// layer by an adapter over `CooldownService`.
 abstract interface class FeedbackCooldownStarter {
   Future<void> start();
 }
-
-/// Idempotency-key factory — `Uuid().v4` in production, a counter in tests.
-typedef ClientIdGenerator = String Function();
 
 /// Invalid generated data (not a network problem): surfaced as user-facing
 /// copy by the controller, distinct from the generic caught-exception error.

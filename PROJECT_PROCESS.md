@@ -880,9 +880,10 @@ Every implementation message follows this exact template:
 - **Deps:** none (verdict above).
 - **Done:** widget test green; `fancy_rating_bar` verdict recorded (keep only if it yields the sketch look, else custom — §3).
 
-#### Iteration 28 — Rating submission path + RatingController ⬜
+#### Iteration 28 — Rating submission path + RatingController ✅ (2026-11-19)
 
 - **Build:** `RatingRemoteDataSource` contract + `RatingLocalDataSource` + `RatingRepositoryImpl` (mirrors Phase 1 seams with an unplugged remote, reuses the shared `AppDatabase` from Iteration 9), `SubmitRating` use case, `RatingController` state machine; the rating queue is added to `SyncService` (Iteration 16) and the scheduler (Iteration 17).
+- **Decision:** ratings reuse the *tested* machinery rather than duplicating it: `RemoteOutcome` + `mapHttpStatus` move to `core/domain/remote_outcome.dart` (re-exported by the feedback datasource so I15 tests keep importing it unchanged), and `DeviceIdReader` + `ClientIdGenerator` move to `core/domain/identity_ports.dart` (also re-exported). `QueuedRating(rating, attempts)` mirrors `QueuedFeedback` so `RatingRepository.pending()` carries durable backoff state; `RatingModel` is the exact four-key wire DTO. `SyncService` gains **optional** `ratingQueue`/`ratingRemote` seams and drains feedback then ratings in one coalesced sweep through a shared outcome/backoff helper — existing I16 tests stay green. Cooldown uses `CooldownAction.rating`; `RatingController` mirrors the feedback state machine with its own `RatingSubmitter` seam. All new domain files stay pure Dart (§4.2).
 - **Files:** `lib/features/rating/data/**`, `lib/features/rating/domain/usecases/submit_rating.dart`, `lib/features/rating/presentation/controllers/rating_controller.dart`, `sync_service.dart` queue wiring.
 - **Tests:** offline path (remote unavailable → success + row `pending` — Patch D rule), fake online → `synced`, 429 → `rejected`; controller transitions; SyncService drains rating rows too.
 - **Done:** tests green.

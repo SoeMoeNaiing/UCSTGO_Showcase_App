@@ -7,10 +7,16 @@ import '../features/feedback/data/local/app_database.dart';
 import '../features/feedback/data/repositories/feedback_repository_impl.dart';
 import '../features/feedback/domain/repositories/feedback_repository.dart';
 import '../features/feedback/domain/usecases/submit_feedback.dart';
+import '../features/rating/data/datasources/rating_local_datasource.dart';
+import '../features/rating/data/datasources/rating_remote_datasource.dart';
+import '../features/rating/data/repositories/rating_repository_impl.dart';
+import '../features/rating/domain/repositories/rating_repository.dart';
+import '../features/rating/domain/usecases/submit_rating.dart';
 import '../features/showcase/data/fixtures/project_fixtures.dart';
 import '../features/showcase/domain/entities/project.dart';
 import '../services/cooldown_service.dart';
 import '../services/device_id_service.dart';
+import '../services/sync_service.dart';
 
 /// Minimal production graph for the submit path (I21).
 ///
@@ -47,6 +53,35 @@ final submitFeedbackProvider = Provider<SubmitFeedback>((ref) {
   );
 });
 
+final ratingRepositoryProvider = Provider<RatingRepository>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return RatingRepositoryImpl(
+    local: RatingLocalDataSource(database),
+    remote: const UnavailableRatingRemoteDataSource(),
+    isOnline: () async => false,
+  );
+});
+
+final submitRatingProvider = Provider<SubmitRating>((ref) {
+  return SubmitRating(
+    repository: ref.watch(ratingRepositoryProvider),
+    deviceIds: _DeviceIdReaderAdapter(ref.watch(deviceIdServiceProvider)),
+    cooldown: _RatingCooldownAdapter(ref.watch(cooldownServiceProvider)),
+    newClientId: const Uuid().v4,
+  );
+});
+
+/// One sync engine drains both queues; the I17 scheduler triggers it without
+/// knowing there are two tables (§6.4).
+final syncServiceProvider = Provider<SyncService>((ref) {
+  return SyncService(
+    queue: ref.watch(feedbackRepositoryProvider),
+    remote: const UnavailableFeedbackRemoteDataSource(),
+    ratingQueue: ref.watch(ratingRepositoryProvider),
+    ratingRemote: const UnavailableRatingRemoteDataSource(),
+  );
+});
+
 final projectFixturesProvider = Provider<List<Project>>((ref) => projectFixtures);
 
 /// Adapters keep plugin-backed services out of `domain/` (§4.2).
@@ -66,4 +101,13 @@ class _CooldownAdapter implements FeedbackCooldownStarter {
 
   @override
   Future<void> start() => _service.start(CooldownAction.feedback);
+}
+
+class _RatingCooldownAdapter implements RatingCooldownStarter {
+  const _RatingCooldownAdapter(this._service);
+
+  final CooldownService _service;
+
+  @override
+  Future<void> start() => _service.start(CooldownAction.rating);
 }

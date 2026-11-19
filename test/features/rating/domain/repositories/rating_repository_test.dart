@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
+import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/queued_rating.dart';
 import 'package:ucstgo_showcase_flutter_app/features/rating/domain/entities/rating.dart';
 import 'package:ucstgo_showcase_flutter_app/features/rating/domain/repositories/rating_repository.dart';
 
@@ -18,8 +19,13 @@ class _FakeRatingRepository implements RatingRepository {
   }
 
   @override
-  Future<List<Rating>> pending({int limit = 50}) async =>
-      queued.take(limit).toList();
+  Future<List<QueuedRating>> pending({int limit = 50}) async => queued
+      .take(limit)
+      .map((rating) => QueuedRating(rating: rating, attempts: 0))
+      .toList();
+
+  @override
+  Stream<int> watchPendingCount() => Stream.value(queued.length);
 
   @override
   Future<void> applySyncStatus(
@@ -52,7 +58,7 @@ void main() {
 
     final pending = await repository.pending();
     expect(pending, hasLength(1));
-    expect(pending.single, rating);
+    expect(pending.single.rating, rating);
 
     await repository.applySyncStatus(
       rating.clientId,

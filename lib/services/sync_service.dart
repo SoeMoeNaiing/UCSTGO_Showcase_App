@@ -1,9 +1,12 @@
 import '../core/domain/sync_status.dart';
 import '../features/feedback/data/datasources/feedback_remote_datasource.dart';
 import '../features/feedback/data/models/feedback_model.dart';
-import '../features/feedback/domain/entities/feedback.dart';
 import '../features/feedback/domain/entities/queued_feedback.dart';
 import '../features/feedback/domain/repositories/feedback_repository.dart';
+import '../features/rating/data/datasources/rating_remote_datasource.dart';
+import '../features/rating/data/models/rating_model.dart';
+import '../features/rating/domain/entities/queued_rating.dart';
+import '../features/rating/domain/repositories/rating_repository.dart';
 
 /// The scheduler's view of the sync engine.
 abstract interface class SyncRunner {
@@ -11,21 +14,24 @@ abstract interface class SyncRunner {
   Future<void> syncAll();
 }
 
-/// Drains the durable queue through the tested remote seam — §6.4/§6.6/§13.
+/// Drains the durable queues through the tested remote seams — §6.4/§6.6/§13.
 ///
 /// Design rules:
 /// - **Serial:** one upload at a time; a low-end kiosk should never have
 ///   several requests in flight.
-/// - **Batched but complete:** `pending(limit:)` bounds each query, the loop
+/// - **Both queues:** feedback first, then ratings, in one coalesced sweep
+///   (I28). The rating seams are optional so the I16 tests still compile.
+/// - **Batched but complete:** `pending(limit:)` bounds each query; the loop
 ///   repeats until nothing is due.
-/// - **Coalesced:** concurrent [syncAll] calls share one run, so the four
-///   triggers landing together (Iteration 17) cannot stampede.
-/// - **Durable backoff:** the attempt count comes from the row, not memory,
-///   so killing the app does not reset the retry ladder.
+/// - **Coalesced:** concurrent [syncAll] calls share one run.
+/// - **Durable backoff:** attempt counts come from the rows, not memory, so
+///   killing the app does not reset the retry ladder.
 class SyncService implements SyncRunner {
   SyncService({
     required this.queue,
     required this.remote,
+    this.ratingQueue,
+    this.ratingRemote,
     DateTime Function()? now,
     this.batchSize = 50,
     this.retryDelays = defaultRetryDelays,
@@ -45,90 +51,118 @@ class SyncService implements SyncRunner {
   final FeedbackRepository queue;
   final FeedbackRemoteDataSource remote;
 
-  /// Injectable clock so the backoff ladder is tested instantly.
+  /// Rating queue/remote — both must be supplied to drain ratings (I28).
+  final RatingRepository? ratingQueue;
+  final RatingRemoteDataSource? ratingRemote;
+
   final DateTime Function() now;
-
-  /// Maximum rows fetched per query (not per run).
   final int batchSize;
-
-  /// Tunable for tests; defaults to the §13 ladder.
   final List<Duration> retryDelays;
 
   Future<void>? _inFlight;
 
-  /// Live count of rows awaiting upload, including backoff-waiting rows.
+  /// Live feedback count, including backoff-waiting rows.
   Stream<int> get pendingCount => queue.watchPendingCount();
 
-  /// Uploads every row that is due, serially.
-  ///
-  /// Concurrent calls share the same in-flight run; the next call after it
-  /// completes starts a fresh sweep.
   @override
   Future<void> syncAll() {
     return _inFlight ??= _drain().whenComplete(() => _inFlight = null);
   }
 
   Future<void> _drain() async {
+    await _drainQueue(
+      load: () => queue.pending(limit: batchSize),
+      handle: _syncFeedback,
+    );
+
+    final ratings = ratingQueue;
+    final ratingUpload = ratingRemote;
+    if (ratings != null && ratingUpload != null) {
+      await _drainQueue(
+        load: () => ratings.pending(limit: batchSize),
+        handle: _syncRating,
+      );
+    }
+  }
+
+  Future<void> _drainQueue<T>({
+    required Future<List<T>> Function() load,
+    required Future<void> Function(T) handle,
+  }) async {
     while (true) {
-      final batch = await queue.pending(limit: batchSize);
+      final batch = await load();
       if (batch.isEmpty) {
         return;
       }
       for (final item in batch) {
-        await _syncOne(item);
+        await handle(item);
       }
     }
   }
 
-  Future<void> _syncOne(QueuedFeedback item) async {
-    final outcome = await _safeSubmit(item.feedback);
+  Future<void> _syncFeedback(QueuedFeedback item) => _submitAndApply(
+        clientId: item.feedback.clientId,
+        attempts: item.attempts,
+        submit: () => remote.submit(FeedbackModel.fromFeedback(item.feedback)),
+        apply: (status, {nextRetryAt}) => queue.applySyncStatus(
+          item.feedback.clientId,
+          status,
+          nextRetryAt: nextRetryAt,
+        ),
+      );
+
+  Future<void> _syncRating(QueuedRating item) => _submitAndApply(
+        clientId: item.rating.clientId,
+        attempts: item.attempts,
+        submit: () => ratingRemote!.submit(RatingModel.fromRating(item.rating)),
+        apply: (status, {nextRetryAt}) => ratingQueue!.applySyncStatus(
+          item.rating.clientId,
+          status,
+          nextRetryAt: nextRetryAt,
+        ),
+      );
+
+  /// One item's §6.6 outcome matrix + §13 backoff, shared by both queues.
+  Future<void> _submitAndApply({
+    required String clientId,
+    required int attempts,
+    required Future<RemoteOutcome> Function() submit,
+    required Future<void> Function(SyncStatus status, {DateTime? nextRetryAt})
+        apply,
+  }) async {
+    final outcome = await _safeSubmit(submit);
 
     switch (outcome) {
       case RemoteOutcome.success:
-        // 200 or replay 409 — the row is safely on the server.
-        await queue.applySyncStatus(item.feedback.clientId, SyncStatus.synced);
+        await apply(SyncStatus.synced);
 
       case RemoteOutcome.rejected:
-        // 429 — visitor over the limit; never retried.
-        await queue.applySyncStatus(item.feedback.clientId, SyncStatus.rejected);
+        await apply(SyncStatus.rejected);
 
       case RemoteOutcome.invalid:
-        // 400 — a client bug; retrying cannot help.
-        await queue.applySyncStatus(
-          item.feedback.clientId,
-          SyncStatus.failedPermanent,
-        );
+        await apply(SyncStatus.failedPermanent);
 
       case RemoteOutcome.serverError:
       case RemoteOutcome.networkFailure:
-        await _scheduleRetry(item);
+        if (attempts >= retryDelays.length) {
+          // Six retries exhausted — stop burning battery on a hopeless row.
+          await apply(SyncStatus.failedPermanent);
+          return;
+        }
+        await apply(
+          SyncStatus.pending,
+          nextRetryAt: now().toUtc().add(retryDelays[attempts]),
+        );
     }
   }
 
-  Future<void> _scheduleRetry(QueuedFeedback item) async {
-    if (item.attempts >= retryDelays.length) {
-      // Six retries exhausted — stop burning battery on a hopeless row.
-      await queue.applySyncStatus(
-        item.feedback.clientId,
-        SyncStatus.failedPermanent,
-      );
-      return;
-    }
-
-    final delay = retryDelays[item.attempts];
-    await queue.applySyncStatus(
-      item.feedback.clientId,
-      SyncStatus.pending,
-      nextRetryAt: now().toUtc().add(delay),
-    );
-  }
-
-  Future<RemoteOutcome> _safeSubmit(Feedback feedback) async {
+  Future<RemoteOutcome> _safeSubmit(
+    Future<RemoteOutcome> Function() submit,
+  ) async {
     try {
-      return await remote.submit(FeedbackModel.fromFeedback(feedback));
+      return await submit();
     } catch (_) {
-      // The seam promises not to throw; stay defensive so a buggy datasource
-      // cannot abort the whole sweep.
+      // A buggy datasource cannot abort the whole sweep.
       return RemoteOutcome.networkFailure;
     }
   }
