@@ -2,23 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/domain/submission_result.dart';
 import '../../../../core/domain/sync_status.dart';
+import '../../../../core/providers.dart';
 import '../../domain/entities/emoji_choice.dart';
+import '../../domain/usecases/submit_feedback.dart';
 
-/// The only side effect the feedback controller knows about (I20 seam).
-///
-/// I20 tests inject a fake. I21 supplies a `SubmitFeedback` use case that
-/// builds the `Feedback` entity and calls the repository — the controller
-/// never imports `data/` or `domain/entities/feedback.dart`.
-abstract interface class FeedbackSubmitter {
-  Future<SubmissionResult> submit(EmojiChoice choice);
-}
-
-/// Overridden with a fake in I20 tests; wired to `SubmitFeedback` at I21.
-/// Reading it before then is a bug, not a silent fallback.
+/// Wired to `SubmitFeedback` at I21; I20 tests override the seam with fakes.
 final feedbackSubmitterProvider = Provider<FeedbackSubmitter>((ref) {
-  throw UnimplementedError(
-    'Override in tests; the SubmitFeedback use case lands at Iteration 21',
-  );
+  return ref.watch(submitFeedbackProvider);
 });
 
 /// Every state of the feedback flow — sealed so the I24 screen can `switch`
@@ -137,6 +127,9 @@ class FeedbackController extends Notifier<FeedbackState> {
     final SubmissionResult result;
     try {
       result = await ref.read(feedbackSubmitterProvider).submit(choice);
+    } on FeedbackValidationException catch (error) {
+      state = FeedbackError(error.message);
+      return;
     } catch (_) {
       state = const FeedbackError('Something went wrong. Please try again.');
       return;

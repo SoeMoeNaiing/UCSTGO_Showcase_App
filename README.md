@@ -69,8 +69,8 @@ Visitor taps emoji
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
 - **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
 - **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
-- **Phase 3 started:** `EmojiPicker` (three hand-drawn faces; tap/Enter/D-pad, arrow traversal, self-drawing focus frame, 2s throttle) + `FeedbackController` (pure Riverpod state machine, injected submitter, no `BuildContext`) — **174 tests**.
-- **Next:** Iteration 21 — `SubmitFeedback` use case + controller wiring (clientId/deviceId → local-first repo submit → cooldown on rejection).
+- **Phase 3 started:** `EmojiPicker` (tap/D-pad, focus frame, 2s throttle), `FeedbackController` (pure state machine), `SubmitFeedback` (idempotent local-first submit + cooldown) — **185 tests**.
+- **Next:** Iteration 22 — `ThankYouCard` with a doodled character, speech bubble, and `flutter_animate` entrance.
 - **Phone preview:** `flutter run` now boots the **temporary interactive picker harness** — tap, Enter/D-pad, focus frame, and the 2s throttle work on the device. The full `FeedbackScreen` lands at **Iteration 24**; rating at **I29**; polished offline release APK at **I33**.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
@@ -104,4 +104,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 21:** `SubmitFeedback` — generate the idempotency key, fetch the anonymous device ID, build the entity, submit through the local-first repository, and start the cooldown on rejection. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 22:** `ThankYouCard` — doodled character + scribbled speech bubble with a `flutter_animate` entrance, pumped through its animation in a widget test. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀

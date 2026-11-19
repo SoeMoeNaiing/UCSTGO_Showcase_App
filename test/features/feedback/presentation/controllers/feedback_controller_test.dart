@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/submission_result.dart';
 import 'package:ucstgo_showcase_flutter_app/core/domain/sync_status.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/entities/emoji_choice.dart';
+import 'package:ucstgo_showcase_flutter_app/features/feedback/domain/usecases/submit_feedback.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/presentation/controllers/feedback_controller.dart';
 
 class _FakeSubmitter implements FeedbackSubmitter {

@@ -811,11 +811,12 @@ Every implementation message follows this exact template:
 - **Tests:** unit tests — each state transition; double-select ignored while `submitting`; error state carries a user-facing message; no `BuildContext` in the controller (§2.1.7).
 - **Done:** tests green.
 
-#### Iteration 21 — SubmitFeedback use case + controller wiring ⬜
+#### Iteration 21 — SubmitFeedback use case + controller wiring ✅ (2026-11-19)
 
 - **Build:** generate `clientId` (uuid) → fetch `deviceId` → build `Feedback(now)` → `repo.submit()` → map `SubmissionResult` to controller state; success starts the cooldown (Iteration 13).
+- **Decision:** the pure-Dart use case owns three injected ports — `DeviceIdReader`, `FeedbackCooldownStarter` and a `ClientIdGenerator` (`Uuid().v4` in the wiring) — plus an injectable UTC clock; adapters over `DeviceIdService` / `CooldownService` live in the provider graph, never in `domain/` (§4.2). Cooldown starts for **accepted** submissions (§7 layer 1) and for `429` rejections (server rate limit), but not for `failedPermanent`. Invalid generated IDs throw `FeedbackValidationException`, which the controller maps to `FeedbackError` with that user-facing message (distinct from the generic caught-exception copy). A minimal graph lands in `lib/core/providers.dart`: `AppDatabase`, device-id/cooldown services, and `FeedbackRepositoryImpl` with `UnavailableFeedbackRemoteDataSource` + `isOnline: () async => false` — Phases 1–5 have no backend, so no upload is attempted; sync/scheduler wiring stays at I24. `feedbackSubmitterProvider` now forwards to `submitFeedbackProvider` (I20 tests still override the seam).
 - **Files:** `lib/features/feedback/domain/usecases/submit_feedback.dart` + controller wiring.
-- **Tests:** happy path; repository offline still yields success; `rejected` result → cooldown started + error message; invalid input → validation error.
+- **Tests:** happy path; repository offline still yields success; `rejected` result → cooldown started + error message; invalid input → validation error; wiring test drives the real use case through the controller.
 - **Done:** unit test green.
 
 #### Iteration 22 — ThankYouCard ⬜
