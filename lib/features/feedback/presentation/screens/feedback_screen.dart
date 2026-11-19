@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/attract_overlay.dart';
 import '../../../../core/widgets/kiosk_scaffold.dart';
 import '../../domain/entities/emoji_choice.dart';
 import '../controllers/feedback_controller.dart';
@@ -74,7 +75,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
     // Riverpod 3 requires listeners to be registered during build.
     ref.listen(feedbackControllerProvider, (previous, next) => _onState(next));
     final state = ref.watch(feedbackControllerProvider);
-    return KioskScaffold(child: _body(state));
+    return AttractOverlay(child: KioskScaffold(child: _body(state)));
   }
 
   Widget _body(FeedbackState state) {

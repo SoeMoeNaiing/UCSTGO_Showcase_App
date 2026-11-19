@@ -8,6 +8,7 @@ import '../../../../core/providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/attract_overlay.dart';
 import '../../../../core/widgets/kiosk_scaffold.dart';
 import '../../../rating/presentation/controllers/rating_controller.dart';
 import '../../../rating/presentation/widgets/rating_widget.dart';
@@ -67,8 +68,9 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(ratingControllerProvider);
 
-    return KioskScaffold(
-      child: Column(
+    return AttractOverlay(
+      child: KioskScaffold(
+        child: Column(
         children: [
           Align(
             alignment: Alignment.topLeft,
@@ -79,6 +81,7 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
           ),
           Expanded(child: Center(child: _body(state))),
         ],
+      ),
       ),
     );
   }

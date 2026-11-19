@@ -914,11 +914,12 @@ Every implementation message follows this exact template:
 - **Deps:** `rive`, `lottie` (lightweight decorative loops only — §3).
 - **Done:** widget tests green; manual visual check on phone.
 
-#### Iteration 31 — Idle attract mode ⬜
+#### Iteration 31 — Idle attract mode ✅ (2026-11-19)
 
 - **Build:** 20s inactivity → attract overlay (pencil draws welcome text loop, token-styled); any input dismisses + resets the timer; wired into Feedback + Rating screens.
+- **Decision:** `AttractOverlay` wraps screen content and owns an injectable `Timer` (`idleDuration = 20s` per §13). Input comes from `Listener(onPointerDown)` for touch and a non-autofocusing `Focus(onKeyEvent)` ancestor for D-pad/keys — key events bubble from the focused face/star to the wrapper, so initial focus is **not** stolen. The overlay is a paper-wash visual on top with a pencil-drawn welcome line and progressive underline `CustomPainter`; it is `IgnorePointer` so the wrapper's listener always sees input. Widget tests advance the tester's fake clock with `tester.pump(Duration)` (same fake-time semantics as `fake_async`, but without nested async/zones) to prove show/dismiss/reset/no-spurious-trigger. Screen wiring must keep I24's "initial focus on the happy face" test green.
 - **Files:** `lib/core/widgets/attract_overlay.dart` + screen wiring.
-- **Tests:** widget test with fake async — after 20s idle the overlay shows; input hides it; timer resets; no spurious trigger during active use.
+- **Tests:** widget test with fake time — after 20s idle the overlay shows; input hides it; timer resets; no spurious trigger during active use.
 - **Done:** widget test green (20s default tunable per §13).
 
 #### Iteration 32 — Cooldown screen UI ⬜
