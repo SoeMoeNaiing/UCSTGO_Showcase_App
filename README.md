@@ -71,9 +71,9 @@ Visitor taps emoji
 - **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
 - **Phase 3 complete (M4):** full `FeedbackScreen` + `/feedback` router — picker → submit → thank-you → prompt → reset, with an E2E widget test and initial D-pad focus on the first face. The I19 preview harness is gone; `flutter run` boots the real flow. **197 tests**.
 - **Phase 4 complete (M5):** full `RatingScreen` at `/rating` — carousel → stars → submit → confirmation, D-pad ready, with an E2E test that walks from the feedback prompt's Yes into the rating flow. Ratings ride the same offline queue/sync engine. **245 tests**.
-- **Phase 5 started:** `SketchAnimation` seam (guaranteed painter fallback), 20s idle attract overlay, and a designed cooldown screen with a doodled clock wired to the persisted deadline. **257 tests**.
-- **Next:** Iteration 33 — device integration test + manual offline drill + release APK → **M6**.
-- **Phone preview:** `flutter run` (or the freshly rebuilt `app-debug.apk`) shows **both flows**: tap a face → thank-you → “Rate our projects?” → **Yes** now opens the real rating screen (swipe projects → tap one → stars → Submit). Polished offline release APK at **I33**.
+- **Phase 5 automated work complete:** `SketchAnimation` seam with painter fallback, 20s attract overlay, designed cooldown screen, device integration test, and **both APKs built** (release 55 MB / debug 230 MB). `rive`/`lottie` deferred — the native setup requires `shasum`, unavailable here. **257 unit/widget tests** green.
+- **Next:** finish the **manual offline drill** on your phone, then start Phase 6 (Supabase schema + RLS) at I34. M6 is marked complete when you report the pending counts.
+- **Phone preview:** install `build/app/outputs/flutter-apk/app-release.apk` (or `app-debug.apk`) — both flows are live: tap a face → thank-you → “Rate our projects?” → **Yes** → swipe projects → stars → Submit. Attract mode appears after 20s idle; cooldown shows a doodled clock.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
 - `web/` is unused scaffold; the app is Android-only.

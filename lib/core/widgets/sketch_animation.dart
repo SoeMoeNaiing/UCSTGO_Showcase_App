@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:rive/rive.dart' as rive;
 
 /// An injectable animated-visual backend (I30, §5.1).
 ///
@@ -47,43 +46,6 @@ final class FallbackSketchAnimationBackend implements SketchAnimationBackend {
         duration: const Duration(milliseconds: 250),
         child: fallback,
       ),
-    );
-  }
-}
-
-/// Real Rive backend for when `.riv` art is supplied.
-///
-/// rive 0.14 reports load failures as `RiveFailed` / `RiveLoading` states;
-/// both render the painter fallback. Widget tests use the no-op/fake backends
-/// and never touch an asset bundle.
-final class RiveSketchAnimationBackend implements SketchAnimationBackend {
-  const RiveSketchAnimationBackend({
-    required this.asset,
-    this.stateMachine,
-  });
-
-  final String asset;
-  final String? stateMachine;
-
-  @override
-  Widget build(
-    BuildContext context, {
-    required Widget fallback,
-    required bool active,
-  }) {
-    return rive.RiveWidgetBuilder(
-      fileLoader: rive.FileLoader.fromAsset(
-        asset,
-        riveFactory: rive.Factory.rive,
-      ),
-      stateMachineSelector: stateMachine == null
-          ? const rive.StateMachineDefault()
-          : rive.StateMachineNamed(stateMachine!),
-      builder: (context, state) => switch (state) {
-        rive.RiveLoaded(:final controller) =>
-          rive.RiveWidget(controller: controller),
-        _ => fallback,
-      },
     );
   }
 }
