@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/database/app_database.dart';
 import '../../core/providers/showcase_providers.dart';
 import '../../core/services/cooldown_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -25,19 +26,99 @@ class ShowcaseHomeScreen extends ConsumerStatefulWidget {
 
 class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
   String _selectedTrack = 'ALL';
+  int _activeIndex = 0;
+  double _dragDx = 0;
+  bool _autoCycle = true;
+  int _refreshTick = 0;
+  Timer? _cycleTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _restartAutoCycle();
+  }
+
+  @override
+  void dispose() {
+    _cycleTimer?.cancel();
+    super.dispose();
+  }
+
+  void _restartAutoCycle() {
+    _cycleTimer?.cancel();
+    if (!_autoCycle) {
+      return;
+    }
+    _cycleTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted) {
+        return;
+      }
+      final list = _currentFilteredProjects();
+      if (list.length > 1 && _dragDx.abs() < 1) {
+        setState(() {
+          _activeIndex = (_activeIndex + 1) % list.length;
+        });
+      }
+    });
+  }
+
+  List<ShowcaseProject> _currentFilteredProjects() {
+    final projects = ref.read(showcaseProjectsProvider);
+    if (_selectedTrack == 'ALL') {
+      return projects;
+    }
+    final matches = projects.where((p) => p.track == _selectedTrack).toList();
+    return matches.isEmpty ? projects : matches;
+  }
+
+  void _stepDeck(int delta, int total) {
+    if (total <= 0) {
+      return;
+    }
+    setState(() {
+      _dragDx = 0;
+      _activeIndex = (_activeIndex + delta + total) % total;
+    });
+  }
 
   Future<void> _openProjectDetail(ShowcaseProject project) async {
+    final wasAuto = _autoCycle;
+    if (wasAuto) {
+      setState(() => _autoCycle = false);
+      _restartAutoCycle();
+    }
+
     await showMaximalistPopDialog<void>(
       context: context,
       borderColor: project.accent,
       shadowColor: AppColors.electricCyan,
       builder: (dialogContext) => _ProjectDetailDialog(project: project),
     );
+
+    if (mounted) {
+      setState(() {
+        _refreshTick++;
+        _autoCycle = wasAuto;
+      });
+      _restartAutoCycle();
+    }
+  }
+
+  Future<({int ratingCount, double avgScore})> _loadRatingStats(
+    AppDatabase db,
+  ) async {
+    final unsynced = await db.getUnsyncedRatings();
+    if (unsynced.isEmpty) {
+      return (ratingCount: 0, avgScore: 0.0);
+    }
+    final total = unsynced.fold<int>(0, (sum, r) => sum + r.score);
+    return (ratingCount: unsynced.length, avgScore: total / unsynced.length);
   }
 
   @override
   Widget build(BuildContext context) {
     final projects = ref.watch(showcaseProjectsProvider);
+    final db = ref.watch(appDatabaseProvider);
     final tracks = <String>[
       'ALL',
       ...{for (final p in projects) p.track},
@@ -45,6 +126,10 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
     final filtered = _selectedTrack == 'ALL'
         ? projects
         : projects.where((p) => p.track == _selectedTrack).toList();
+    final safeIndex = filtered.isEmpty
+        ? 0
+        : _activeIndex.clamp(0, filtered.length - 1);
+    final activeProject = filtered.isEmpty ? null : filtered[safeIndex];
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -55,6 +140,7 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
               children: [
                 Expanded(
                   child: ListView(
+                    key: ValueKey('deck_list_$_refreshTick'),
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.md,
                       AppSpacing.md,
@@ -63,36 +149,56 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
                     ),
                     children: [
                       const UniversityHeroBanner(),
+                      const SizedBox(height: AppSpacing.md),
+                      FutureBuilder<({int ratingCount, double avgScore})>(
+                        future: _loadRatingStats(db),
+                        builder: (context, snapshot) {
+                          final stats =
+                              snapshot.data ?? (ratingCount: 0, avgScore: 0.0);
+                          final avgLabel = stats.ratingCount == 0
+                              ? '--'
+                              : stats.avgScore.toStringAsFixed(1);
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _DeckStatPill(
+                                  label: 'PROJECTS',
+                                  value: '${projects.length}',
+                                  accent: AppColors.electricCyan,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: _DeckStatPill(
+                                  label: 'AVG SCORE',
+                                  value: stats.ratingCount == 0
+                                      ? avgLabel
+                                      : '$avgLabel ★ (${stats.ratingCount})',
+                                  accent: AppColors.solarGold,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              'EXPLORE PROJECTS',
+                              'KINETIC DECK',
                               style: textTheme.headlineMedium?.copyWith(
                                 fontSize: 22,
                               ),
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm,
-                              vertical: AppSpacing.xs,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceElevated,
-                              borderRadius: BorderRadius.circular(
-                                AppSpacing.radiusSm,
-                              ),
-                              border: Border.all(color: AppColors.acidLime),
-                            ),
-                            child: Text(
-                              '${filtered.length} LIVE',
-                              style: textTheme.labelLarge?.copyWith(
-                                color: AppColors.acidLime,
-                                fontSize: 11,
-                              ),
-                            ),
+                          FilterChip(
+                            selected: _autoCycle,
+                            label: Text(_autoCycle ? 'AUTO: ON' : 'AUTO: OFF'),
+                            onSelected: (val) {
+                              setState(() => _autoCycle = val);
+                              _restartAutoCycle();
+                            },
                           ),
                         ],
                       ),
@@ -110,55 +216,82 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
                             return ChoiceChip(
                               selected: active,
                               label: Text(track),
-                              onSelected: (_) =>
-                                  setState(() => _selectedTrack = track),
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedTrack = track;
+                                  _activeIndex = 0;
+                                  _dragDx = 0;
+                                });
+                              },
                             );
                           },
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth >= 680;
-                          if (isWide) {
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: filtered.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    mainAxisSpacing: AppSpacing.md,
-                                    crossAxisSpacing: AppSpacing.md,
-                                    childAspectRatio: 1.45,
-                                  ),
-                              itemBuilder: (context, index) =>
-                                  _ExploreProjectCard(
-                                    project: filtered[index],
-                                    index: index,
-                                    onTap: () => unawaited(
-                                      _openProjectDetail(filtered[index]),
-                                    ),
-                                  ),
-                            );
-                          }
-                          return Column(
-                            children: [
-                              for (var i = 0; i < filtered.length; i++) ...[
-                                _ExploreProjectCard(
-                                  project: filtered[i],
-                                  index: i,
-                                  onTap: () => unawaited(
-                                    _openProjectDetail(filtered[i]),
-                                  ),
-                                ),
-                                if (i < filtered.length - 1)
-                                  const SizedBox(height: AppSpacing.md),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
+                      if (activeProject != null) ...[
+                        _SwipeableHeroCard(
+                          project: activeProject,
+                          index: safeIndex,
+                          total: filtered.length,
+                          dragDx: _dragDx,
+                          onPanStart: (_) {
+                            if (_autoCycle) {
+                              setState(() => _autoCycle = false);
+                              _restartAutoCycle();
+                            }
+                          },
+                          onPanUpdate: (details) {
+                            setState(() => _dragDx += details.delta.dx);
+                          },
+                          onPanEnd: (_) {
+                            if (_dragDx > 90) {
+                              _stepDeck(1, filtered.length);
+                            } else if (_dragDx < -90) {
+                              _stepDeck(-1, filtered.length);
+                            } else {
+                              setState(() => _dragDx = 0);
+                            }
+                          },
+                          onInspect: () =>
+                              unawaited(_openProjectDetail(activeProject)),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton.filledTonal(
+                              onPressed: () => _stepDeck(-1, filtered.length),
+                              icon: const Icon(Icons.chevron_left_rounded),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Text(
+                              'SWIPE OR TAP • ${safeIndex + 1} / ${filtered.length}',
+                              style: textTheme.labelLarge,
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            IconButton.filledTonal(
+                              onPressed: () => _stepDeck(1, filtered.length),
+                              icon: const Icon(Icons.chevron_right_rounded),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        for (var i = 0; i < filtered.length; i++) ...[
+                          _AnimatedQueueRow(
+                            project: filtered[i],
+                            selected: i == safeIndex,
+                            index: i,
+                            onSelect: () => setState(() {
+                              _activeIndex = i;
+                              _dragDx = 0;
+                            }),
+                            onOpen: () =>
+                                unawaited(_openProjectDetail(filtered[i])),
+                          ),
+                          if (i < filtered.length - 1)
+                            const SizedBox(height: AppSpacing.sm),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -179,115 +312,265 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
   }
 }
 
-class _ExploreProjectCard extends StatelessWidget {
-  const _ExploreProjectCard({
-    required this.project,
-    required this.index,
-    required this.onTap,
+class _DeckStatPill extends StatelessWidget {
+  const _DeckStatPill({
+    required this.label,
+    required this.value,
+    required this.accent,
   });
 
-  final ShowcaseProject project;
-  final int index;
-  final VoidCallback onTap;
+  final String label;
+  final String value;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
-    return InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: project.accent,
-                width: AppSpacing.borderThick,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: project.accent.withValues(alpha: 0.35),
-                  offset: const Offset(4, 4),
-                ),
-              ],
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: accent, width: AppSpacing.borderThin),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.labelLarge?.copyWith(
+              color: AppColors.inkSecondary,
+              fontSize: 11,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xs,
-                      ),
-                      color: project.accent,
-                      child: Text(
-                        project.track,
-                        style: textTheme.labelLarge?.copyWith(
-                          color: AppColors.voidBlack,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.open_in_full_rounded,
-                      size: 18,
-                      color: project.accent,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.titleLarge?.copyWith(color: accent, fontSize: 20),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SwipeableHeroCard extends StatelessWidget {
+  const _SwipeableHeroCard({
+    required this.project,
+    required this.index,
+    required this.total,
+    required this.dragDx,
+    required this.onPanStart,
+    required this.onPanUpdate,
+    required this.onPanEnd,
+    required this.onInspect,
+  });
+
+  final ShowcaseProject project;
+  final int index;
+  final int total;
+  final double dragDx;
+  final GestureDragStartCallback onPanStart;
+  final GestureDragUpdateCallback onPanUpdate;
+  final GestureDragEndCallback onPanEnd;
+  final VoidCallback onInspect;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final tilt = (dragDx / 420).clamp(-0.14, 0.14);
+
+    return GestureDetector(
+          onPanStart: onPanStart,
+          onPanUpdate: onPanUpdate,
+          onPanEnd: onPanEnd,
+          onTap: onInspect,
+          child: Transform.translate(
+            offset: Offset(dragDx, 0),
+            child: Transform.rotate(
+              angle: tilt,
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceDark,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(
+                    color: project.accent,
+                    width: AppSpacing.borderThick,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: project.accent.withValues(alpha: 0.4),
+                      offset: const Offset(6, 6),
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  project.title,
-                  style: textTheme.titleLarge?.copyWith(fontSize: 18),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  project.summary,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final tag in project.techStack)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(
-                            AppSpacing.radiusSm,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
                           ),
-                          border: Border.all(color: AppColors.gridLine),
-                        ),
-                        child: Text(
-                          tag,
-                          style: textTheme.bodyMedium?.copyWith(
-                            fontSize: 11,
-                            color: AppColors.inkPrimary,
+                          color: project.accent,
+                          child: Text(
+                            project.track,
+                            style: textTheme.labelLarge?.copyWith(
+                              color: AppColors.voidBlack,
+                              fontSize: 11,
+                            ),
                           ),
                         ),
+                        const Spacer(),
+                        if (dragDx.abs() > 24)
+                          Text(
+                            dragDx > 0 ? 'NEXT >>>' : '<<< PREV',
+                            style: textTheme.labelLarge?.copyWith(
+                              color: AppColors.acidLime,
+                            ),
+                          )
+                        else
+                          Icon(
+                            Icons.swipe_rounded,
+                            color: project.accent,
+                            size: 22,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      project.title,
+                      style: textTheme.headlineMedium?.copyWith(fontSize: 22),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      project.team,
+                      style: textTheme.labelLarge?.copyWith(
+                        color: AppColors.solarGold,
                       ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(project.summary, style: textTheme.bodyLarge),
+                    const SizedBox(height: AppSpacing.md),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        for (final tag in project.techStack)
+                          Chip(label: Text(tag)),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    FilledButton.icon(
+                      onPressed: onInspect,
+                      icon: const Icon(Icons.star_rate_rounded),
+                      label: const Text('INSPECT & RATE'),
+                    ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         )
-        .animate()
-        .fadeIn(delay: (index * 70).ms, duration: 280.ms)
-        .slideY(begin: 0.06, end: 0, delay: (index * 70).ms, duration: 280.ms);
+        .animate(
+          key: ValueKey('hero_${project.id}_$index'),
+          onPlay: (c) => c.repeat(reverse: true),
+        )
+        .moveY(
+          begin: -3,
+          end: 3,
+          duration: const Duration(milliseconds: 1900),
+          curve: Curves.easeInOutSine,
+        );
+  }
+}
+
+class _AnimatedQueueRow extends StatelessWidget {
+  const _AnimatedQueueRow({
+    required this.project,
+    required this.selected,
+    required this.index,
+    required this.onSelect,
+    required this.onOpen,
+  });
+
+  final ShowcaseProject project;
+  final bool selected;
+  final int index;
+  final VoidCallback onSelect;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return InkWell(
+      onTap: onSelect,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.surfaceElevated
+              : AppColors.surfaceDark.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          border: Border.all(
+            color: selected ? project.accent : AppColors.gridLine,
+            width: selected ? AppSpacing.borderThick : AppSpacing.borderThin,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: project.accent,
+                    shape: BoxShape.circle,
+                  ),
+                )
+                .animate(onPlay: (c) => c.repeat(reverse: true))
+                .scaleXY(
+                  begin: 0.85,
+                  end: 1.35,
+                  delay: (index * 150).ms,
+                  duration: const Duration(milliseconds: 1100),
+                ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    project.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelLarge,
+                  ),
+                  Text(
+                    project.track,
+                    style: textTheme.bodyMedium?.copyWith(fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: onOpen,
+              icon: Icon(Icons.open_in_new_rounded, color: project.accent),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
