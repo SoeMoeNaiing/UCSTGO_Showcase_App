@@ -847,12 +847,14 @@ Every implementation message follows this exact template:
 - **Deps:** `go_router`.
 - **Done:** widget tests green → **M4**.
 
-### 10.7 Phase 4 — Rating Flow (Iterations 25–29)
+### 10.7 Phase 4 — Rating Flow (Iterations 25–29) ✅
 
 **Goal:** rate showcase projects, riding the exact same offline queue and sync engine.
 **Entry gate:** M4 confirmed.
 **Exit gate:** full `RatingScreen` widget test; rating rows flow through the same SyncService outcome matrix.
 **Deliverables:** `Project` entity + fixture list, `ProjectCard`, `ProjectCarousel`, `RatingWidget`, rating data layer + `RatingController`, `RatingScreen`.
+
+**Milestone M5 reached ✅ (2026-11-19):** 245/245 tests green, `flutter analyze` clean, debug APK rebuilt. `/rating` now hosts the real screen: carousel → project → stars → submit → confirmation, with D-pad traversal, a 429 cooldown gate and an E2E test that walks from the feedback prompt's **Yes** into the rating flow. Ratings persist locally through the same queue and `SyncService` as feedback — still zero backend required.
 
 #### Iteration 25 — Project entity + ProjectCard ✅ (2026-11-19)
 
@@ -888,11 +890,12 @@ Every implementation message follows this exact template:
 - **Tests:** offline path (remote unavailable → success + row `pending` — Patch D rule), fake online → `synced`, 429 → `rejected`; controller transitions; SyncService drains rating rows too.
 - **Done:** tests green.
 
-#### Iteration 29 — Full RatingScreen assembly ⬜
+#### Iteration 29 — Full RatingScreen assembly ✅ (2026-11-19)
 
 - **Build:** screen flow: carousel → select card → stars → submit → confirmation → back to idle; `/rating` route registered; providers overridable for tests.
+- **Decision:** `RatingScreen` keeps only local `Project?` + `score` and watches `RatingController`: idle → carousel (or stars once selected), submitting → status, success → confirmation, cooldown/error → the controller's user-facing message. **Done** resets both controller and local picks; cooldown shows no Submit button until reset. The `/rating` placeholder is deleted. `app_router.dart` exposes `createAppRouter({initialLocation})` and `KioskApp` gains an optional `router`, so the E2E tests get fresh router state instead of a leaked global `/rating` location. Stable keys mark confirmation/status/submit for assertions; all copy uses tokens.
 - **Files:** `lib/features/rating/presentation/screens/rating_screen.dart` + router wiring.
-- **Tests:** select card shows stars; set score + submit calls repo once; confirmation appears; fake pending repo → no crash; cooldown respected.
+- **Tests:** select card shows stars; set score + submit calls repo once; confirmation appears; fake pending repo → no crash; cooldown respected; Yes from the feedback prompt navigates to `/rating`.
 - **Done:** widget tests green → **M5**.
 
 ### 10.8 Phase 5 — Phone Polish & Offline Release (Iterations 30–33)

@@ -1,56 +1,25 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/feedback/presentation/screens/feedback_screen.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_spacing.dart';
-import '../theme/app_typography.dart';
+import '../../features/rating/presentation/screens/rating_screen.dart';
 
-/// Kiosk routes — `/feedback` is the entry point (§10.6, I24).
+/// Kiosk routes — `/feedback` is the entry point (§10.6, §10.7).
 ///
-/// `/rating` is a placeholder until the real `RatingScreen` lands at I29;
-/// registering it now keeps the Yes action a real navigation rather than
-/// a silent no-op.
-final appRouter = GoRouter(
-  initialLocation: '/feedback',
-  routes: [
-    GoRoute(
-      path: '/feedback',
-      builder: (context, state) => const FeedbackScreen(),
-    ),
-    GoRoute(
-      path: '/rating',
-      builder: (context, state) => const _RatingPlaceholder(),
-    ),
-  ],
-);
-
-class _RatingPlaceholder extends StatelessWidget {
-  const _RatingPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.paperBackground,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Rating arrives at I29',
-              textAlign: TextAlign.center,
-              style: AppTypography.headline.copyWith(
-                color: AppColors.inkPrimary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            TextButton(
-              onPressed: () => context.go('/feedback'),
-              child: const Text('Back'),
-            ),
-          ],
+/// A factory keeps route state fresh per app instance (tests must not
+/// inherit a leaked `/rating` location from the previous test).
+GoRouter createAppRouter({String initialLocation = '/feedback'}) => GoRouter(
+      initialLocation: initialLocation,
+      routes: [
+        GoRoute(
+          path: '/feedback',
+          builder: (context, state) => const FeedbackScreen(),
         ),
-      ),
+        GoRoute(
+          path: '/rating',
+          builder: (context, state) => const RatingScreen(),
+        ),
+      ],
     );
-  }
-}
+
+/// Production router.
+final appRouter = createAppRouter();
