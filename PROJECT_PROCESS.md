@@ -905,11 +905,12 @@ Every implementation message follows this exact template:
 **Exit gate:** offline drill checklist passes (queue survives force-kill + relaunch); `flutter build apk --release` succeeds.
 **Deliverables:** Rive assets, idle attract mode, cooldown screen, integration test, phone release APK.
 
-#### Iteration 30 — Rive integration ⬜
+#### Iteration 30 — Rive integration ✅ (2026-11-19)
 
 - **Build:** add `assets/rive/` (emoji reaction + thank-you character); wrap in a sketch-animation widget with an **injectable no-op backend** for tests and a `CustomPainter` fallback if Rive fails to load (kiosk must never show a broken asset).
-- **Files:** `assets/rive/*.riv`, `lib/core/widgets/sketch_animation.dart`, updates to `EmojiPicker` / `ThankYouCard`; pubspec `assets:` section.
-- **Tests:** fake backend renders + advances state; Rive failure path falls back to painter without throwing. **No `.riv` loading in widget tests.**
+- **Decision:** binary `.riv` art is a manual asset step (this iteration cannot author it), so `assets/rive/` is registered with a `.gitkeep` and the **default backend is the animated painter fallback** — the kiosk never shows a broken or empty asset. `SketchAnimation` owns the seam: `SketchAnimationBackend.build(fallback, active)`, a `NoOpSketchAnimationBackend` (pure painter, tests), a `FallbackSketchAnimationBackend` (animated painter, production default), and `RiveSketchAnimationBackend` using rive 0.14's `RiveWidgetBuilder` + `FileLoader.fromAsset` with `RiveLoading`/`RiveFailed` → painter. `SketchAnimation` catches a throwing backend as a second safety net. `ThankYouCard` and `EmojiFace` gain optional backend params (no behavior change with the no-op/fallback); their existing keys stay on the fallback painter so I18/I19/I22 tests are untouched. Tests never load `.riv`; the failure path is proven with a throwing fake backend. `lottie` is added now for I31's decorative loops.
+- **Files:** `assets/rive/.gitkeep`, `lib/core/widgets/sketch_animation.dart`, updates to `EmojiPicker` / `ThankYouCard`; pubspec `assets:` section.
+- **Tests:** fake backend renders + advances state; failing backend falls back to painter without throwing; existing component suites stay green. **No `.riv` loading in widget tests.**
 - **Deps:** `rive`, `lottie` (lightweight decorative loops only — §3).
 - **Done:** widget tests green; manual visual check on phone.
 

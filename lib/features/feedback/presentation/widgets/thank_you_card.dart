@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/sketch_animation.dart';
 
 /// The success moment: a doodled character waves while a speech bubble
 /// scribbles "Thank you!" — PROJECT_PROCESS.md §5.1.
@@ -13,7 +14,13 @@ import '../../../../core/theme/app_typography.dart';
 /// once. Rive replaces the hand-drawn character at I30; until then there
 /// is no asset to fail to load on a kiosk.
 class ThankYouCard extends StatelessWidget {
-  const ThankYouCard({super.key});
+  const ThankYouCard({
+    super.key,
+    this.animationBackend = const NoOpSketchAnimationBackend(),
+  });
+
+  /// Injectable animation backend; the painter is always the fallback.
+  final SketchAnimationBackend animationBackend;
 
   static const message = 'Thank you!';
   static const bubbleKey = Key('thank_you_bubble');
@@ -63,14 +70,16 @@ class ThankYouCard extends StatelessWidget {
                 bottom: 0,
                 child: SizedBox.square(
                   dimension: _characterSize,
-                  child: CustomPaint(
-                    key: characterKey,
+                  child: SketchAnimation(
                     painter: _CharacterPainter(
                       ink: AppColors.inkPrimary,
                       paper: AppColors.paperWhite,
                       blush: AppColors.accentBlush,
                       wave: AppColors.accentWarm,
                     ),
+                    backend: animationBackend,
+                    active: true,
+                    fallbackKey: characterKey,
                   ),
                 ),
               ),

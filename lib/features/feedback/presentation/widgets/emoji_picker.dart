@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/sketch_animation.dart';
 import '../../../../core/widgets/sketch_focus_frame.dart';
 import '../../domain/entities/emoji_choice.dart';
 
@@ -23,6 +24,7 @@ class EmojiPicker extends StatefulWidget {
     this.maxFaceSize = 180,
     this.throttle = const Duration(seconds: 2),
     this.autofocusFirst = false,
+    this.faceAnimationBackend,
   })  : assert(maxFaceSize > 0, 'maxFaceSize must be positive'),
         assert(throttle > Duration.zero, 'throttle must be positive');
 
@@ -40,6 +42,10 @@ class EmojiPicker extends StatefulWidget {
   /// Requests focus on the first (happy) face after the first frame.
   /// Used by the TV pass; I24 decides the phone default.
   final bool autofocusFirst;
+
+  /// Optional animated backend for the faces (I30 Rive seam). When null the
+  /// proven `CustomPainter` path is used unchanged.
+  final SketchAnimationBackend? faceAnimationBackend;
 
   @override
   State<EmojiPicker> createState() => _EmojiPickerState();
@@ -90,6 +96,7 @@ class _EmojiPickerState extends State<EmojiPicker> {
                 size: faceSize,
                 autofocus: widget.autofocusFirst &&
                     choice == EmojiChoice.values.first,
+                animationBackend: widget.faceAnimationBackend,
                 onActivate: () => _select(choice),
               ),
           ],
@@ -112,6 +119,7 @@ class EmojiFace extends StatefulWidget {
     required this.size,
     required this.onActivate,
     this.autofocus = false,
+    this.animationBackend,
   }) : assert(size > 0, 'size must be positive');
 
   /// Sentiment rendered by this face.
@@ -125,6 +133,10 @@ class EmojiFace extends StatefulWidget {
 
   /// Requests focus after the first frame (first face on TV).
   final bool autofocus;
+
+  /// Optional animated backend (I30 Rive seam). Null keeps the original
+  /// painter path so all existing focus/keyboard tests are unaffected.
+  final SketchAnimationBackend? animationBackend;
 
   /// Stable canvas key so tests can measure the square face itself.
   static Key canvasKeyFor(EmojiChoice choice) =>
@@ -248,15 +260,30 @@ class _EmojiFaceState extends State<EmojiFace>
                             curve: Curves.easeOutBack,
                             child: Transform.rotate(
                               angle: _tilt,
-                              child: CustomPaint(
-                                key: EmojiFace.canvasKeyFor(widget.choice),
-                                painter: _EmojiFacePainter(
-                                  choice: widget.choice,
-                                  ink: AppColors.inkPrimary,
-                                  accent: _accent,
-                                  blush: AppColors.accentBlush,
-                                ),
-                              ),
+                              child: widget.animationBackend == null
+                                  ? CustomPaint(
+                                      key: EmojiFace.canvasKeyFor(
+                                        widget.choice,
+                                      ),
+                                      painter: _EmojiFacePainter(
+                                        choice: widget.choice,
+                                        ink: AppColors.inkPrimary,
+                                        accent: _accent,
+                                        blush: AppColors.accentBlush,
+                                      ),
+                                    )
+                                  : SketchAnimation(
+                                      painter: _EmojiFacePainter(
+                                        choice: widget.choice,
+                                        ink: AppColors.inkPrimary,
+                                        accent: _accent,
+                                        blush: AppColors.accentBlush,
+                                      ),
+                                      backend: widget.animationBackend!,
+                                      active: _focused,
+                                      fallbackKey:
+                                          EmojiFace.canvasKeyFor(widget.choice),
+                                    ),
                             ),
                           ),
                         ),

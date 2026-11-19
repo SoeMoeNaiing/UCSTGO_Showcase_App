@@ -71,7 +71,8 @@ Visitor taps emoji
 - **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
 - **Phase 3 complete (M4):** full `FeedbackScreen` + `/feedback` router — picker → submit → thank-you → prompt → reset, with an E2E widget test and initial D-pad focus on the first face. The I19 preview harness is gone; `flutter run` boots the real flow. **197 tests**.
 - **Phase 4 complete (M5):** full `RatingScreen` at `/rating` — carousel → stars → submit → confirmation, D-pad ready, with an E2E test that walks from the feedback prompt's Yes into the rating flow. Ratings ride the same offline queue/sync engine. **245 tests**.
-- **Next:** Iteration 30 — `Rive`/`Lottie` sketch animations with an injectable no-op backend and a `CustomPainter` fallback.
+- **Phase 5 started:** `SketchAnimation` seam — no-op/fallback/Rive backends with a guaranteed `CustomPainter` fallback, wired into `EmojiPicker` and `ThankYouCard`; real `.riv` art remains a manual asset step. **249 tests**.
+- **Next:** Iteration 31 — idle attract mode with lightweight Lottie loops and token-safe fallback.
 - **Phone preview:** `flutter run` (or the freshly rebuilt `app-debug.apk`) shows **both flows**: tap a face → thank-you → “Rate our projects?” → **Yes** now opens the real rating screen (swipe projects → tap one → stars → Submit). Polished offline release APK at **I33**.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
@@ -105,4 +106,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 30:** sketch animations — `Rive`/`Lottie` with an injectable no-op backend and a `CustomPainter` fallback, so a missing asset can never break the kiosk. See [§10.8 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 31:** idle attract mode — a 20s inactivity overlay (pencil-drawn welcome loop) on Feedback + Rating, any input dismisses and resets the timer, proven with fake async. See [§10.8 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
