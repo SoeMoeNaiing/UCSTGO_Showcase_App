@@ -17,6 +17,18 @@ import '../../core/widgets/maximalist_backdrop.dart';
 import '../../core/widgets/pop_modal.dart';
 import '../../core/widgets/university_hero_banner.dart';
 
+class _RankedProject {
+  const _RankedProject({
+    required this.project,
+    required this.avgScore,
+    required this.voteCount,
+  });
+
+  final ShowcaseProject project;
+  final double avgScore;
+  final int voteCount;
+}
+
 class ShowcaseHomeScreen extends ConsumerStatefulWidget {
   const ShowcaseHomeScreen({super.key});
 
@@ -24,145 +36,68 @@ class ShowcaseHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<ShowcaseHomeScreen> createState() => _ShowcaseHomeScreenState();
 }
 
-class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen>
-    with SingleTickerProviderStateMixin {
+class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
   String _selectedTrack = 'ALL';
-  int _activeIndex = 0;
-  double _dragDx = 0;
-  bool _autoCycle = true;
   int _refreshTick = 0;
-  Timer? _cycleTimer;
-  late final AnimationController _snapController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 240),
-  );
-  double _snapStartDx = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _snapController.addListener(_onSnapTick);
-    _restartAutoCycle();
-  }
-
-  void _onSnapTick() {
-    final curved = Curves.easeOutBack.transform(_snapController.value);
-    setState(() {
-      _dragDx = _snapStartDx * (1.0 - curved);
-    });
-  }
-
-  @override
-  void dispose() {
-    _cycleTimer?.cancel();
-    _snapController.removeListener(_onSnapTick);
-    _snapController.dispose();
-    super.dispose();
-  }
-
-  void _restartAutoCycle() {
-    _cycleTimer?.cancel();
-    if (!_autoCycle) {
-      return;
-    }
-    _cycleTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted) {
-        return;
-      }
-      final list = _currentFilteredProjects();
-      if (list.length > 1 &&
-          _dragDx.abs() < 1 &&
-          !_snapController.isAnimating) {
-        setState(() {
-          _activeIndex = (_activeIndex + 1) % list.length;
-        });
-      }
-    });
-  }
-
-  List<ShowcaseProject> _currentFilteredProjects() {
-    final projects = ref.read(showcaseProjectsProvider);
-    if (_selectedTrack == 'ALL') {
-      return projects;
-    }
-    final matches = projects.where((p) => p.track == _selectedTrack).toList();
-    return matches.isEmpty ? projects : matches;
-  }
-
-  void _animateSnapBack() {
-    if (_dragDx == 0) {
-      return;
-    }
-    _snapStartDx = _dragDx;
-    _snapController.forward(from: 0);
-  }
-
-  void _stepDeck(int delta, int total) {
-    if (total <= 0) {
-      return;
-    }
-    _snapController.stop();
-    setState(() {
-      _dragDx = 0;
-      _activeIndex = (_activeIndex + delta + total) % total;
-    });
-  }
 
   Future<void> _openProjectDetail(ShowcaseProject project) async {
-    final wasAuto = _autoCycle;
-    if (wasAuto) {
-      setState(() => _autoCycle = false);
-      _restartAutoCycle();
-    }
-
     await showMaximalistPopDialog<void>(
       context: context,
       borderColor: project.accent,
       shadowColor: AppColors.electricCyan,
       builder: (dialogContext) => _ProjectDetailDialog(project: project),
     );
-
     if (mounted) {
-      setState(() {
-        _refreshTick++;
-        _autoCycle = wasAuto;
-      });
-      _restartAutoCycle();
+      setState(() => _refreshTick++);
     }
   }
 
-  Future<({int ratingCount, double avgScore})> _loadRatingStats(
+  Future<List<_RankedProject>> _buildLeaderboard(
     AppDatabase db,
+    List<ShowcaseProject> projects,
   ) async {
-    final unsynced = await db.getUnsyncedRatings();
-    if (unsynced.isEmpty) {
-      return (ratingCount: 0, avgScore: 0.0);
+    final ratings = await db.getUnsyncedRatings();
+    final byProject = <String, List<int>>{};
+    for (final r in ratings) {
+      (byProject[r.projectId] ??= []).add(r.score);
     }
-    final total = unsynced.fold<int>(0, (sum, r) => sum + r.score);
-    return (ratingCount: unsynced.length, avgScore: total / unsynced.length);
+
+    final ranked = [
+      for (final p in projects)
+        () {
+          final scores = byProject[p.id] ?? const <int>[];
+          final avg = scores.isEmpty
+              ? 0.0
+              : scores.fold<int>(0, (a, b) => a + b) / scores.length;
+          return _RankedProject(
+            project: p,
+            avgScore: avg,
+            voteCount: scores.length,
+          );
+        }(),
+    ];
+
+    ranked.sort((a, b) {
+      final scoreCmp = b.avgScore.compareTo(a.avgScore);
+      if (scoreCmp != 0) {
+        return scoreCmp;
+      }
+      return b.voteCount.compareTo(a.voteCount);
+    });
+    return ranked;
   }
 
   @override
   Widget build(BuildContext context) {
-    final projects = ref.watch(showcaseProjectsProvider);
+    final allProjects = ref.watch(showcaseProjectsProvider);
     final db = ref.watch(appDatabaseProvider);
     final tracks = <String>[
       'ALL',
-      ...{for (final p in projects) p.track},
+      ...{for (final p in allProjects) p.track},
     ];
     final filtered = _selectedTrack == 'ALL'
-        ? projects
-        : projects.where((p) => p.track == _selectedTrack).toList();
-    final safeIndex = filtered.isEmpty
-        ? 0
-        : _activeIndex.clamp(0, filtered.length - 1);
-    final activeProject = filtered.isEmpty ? null : filtered[safeIndex];
-    final nextProject = filtered.length > 1
-        ? filtered[(safeIndex + 1) % filtered.length]
-        : null;
-    final thirdProject = filtered.length > 2
-        ? filtered[(safeIndex + 2) % filtered.length]
-        : null;
+        ? allProjects
+        : allProjects.where((p) => p.track == _selectedTrack).toList();
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -173,7 +108,7 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen>
               children: [
                 Expanded(
                   child: ListView(
-                    key: ValueKey('stacked_deck_$_refreshTick'),
+                    key: ValueKey('arcade_board_$_refreshTick'),
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.md,
                       AppSpacing.md,
@@ -182,56 +117,36 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen>
                     ),
                     children: [
                       const UniversityHeroBanner(),
-                      const SizedBox(height: AppSpacing.md),
-                      FutureBuilder<({int ratingCount, double avgScore})>(
-                        future: _loadRatingStats(db),
-                        builder: (context, snapshot) {
-                          final stats =
-                              snapshot.data ?? (ratingCount: 0, avgScore: 0.0);
-                          final avgLabel = stats.ratingCount == 0
-                              ? '--'
-                              : stats.avgScore.toStringAsFixed(1);
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _DeckStatPill(
-                                  label: 'PROJECTS',
-                                  value: '${projects.length}',
-                                  accent: AppColors.electricCyan,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: _DeckStatPill(
-                                  label: 'AVG SCORE',
-                                  value: stats.ratingCount == 0
-                                      ? avgLabel
-                                      : '$avgLabel ★ (${stats.ratingCount})',
-                                  accent: AppColors.solarGold,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
                       const SizedBox(height: AppSpacing.lg),
                       Row(
                         children: [
+                          const Icon(
+                                Icons.emoji_events_rounded,
+                                color: AppColors.solarGold,
+                                size: 26,
+                              )
+                              .animate(onPlay: (c) => c.repeat(reverse: true))
+                              .scaleXY(
+                                begin: 0.92,
+                                end: 1.14,
+                                duration: 900.ms,
+                              ),
+                          const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Text(
-                              'STACKED DECK',
+                              'LIVE LEADERBOARD',
                               style: textTheme.headlineMedium?.copyWith(
                                 fontSize: 22,
+                                color: AppColors.solarGold,
                               ),
                             ),
                           ),
-                          FilterChip(
-                            selected: _autoCycle,
-                            label: Text(_autoCycle ? 'AUTO: ON' : 'AUTO: OFF'),
-                            onSelected: (val) {
-                              setState(() => _autoCycle = val);
-                              _restartAutoCycle();
-                            },
+                          Text(
+                            'TAP TO VOTE',
+                            style: textTheme.labelLarge?.copyWith(
+                              color: AppColors.acidLime,
+                              fontSize: 11,
+                            ),
                           ),
                         ],
                       ),
@@ -249,88 +164,44 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen>
                             return ChoiceChip(
                               selected: active,
                               label: Text(track),
-                              onSelected: (_) {
-                                _snapController.stop();
-                                setState(() {
-                                  _selectedTrack = track;
-                                  _activeIndex = 0;
-                                  _dragDx = 0;
-                                });
-                              },
+                              onSelected: (_) =>
+                                  setState(() => _selectedTrack = track),
                             );
                           },
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      if (activeProject != null) ...[
-                        _StackedCardStage(
-                          activeProject: activeProject,
-                          nextProject: nextProject,
-                          thirdProject: thirdProject,
-                          activeIndex: safeIndex,
-                          dragDx: _dragDx,
-                          onPanStart: (_) {
-                            _snapController.stop();
-                            if (_autoCycle) {
-                              setState(() => _autoCycle = false);
-                              _restartAutoCycle();
-                            }
-                          },
-                          onPanUpdate: (details) {
-                            setState(() => _dragDx += details.delta.dx);
-                          },
-                          onPanEnd: (_) {
-                            if (_dragDx > 95) {
-                              _stepDeck(1, filtered.length);
-                            } else if (_dragDx < -95) {
-                              _stepDeck(-1, filtered.length);
-                            } else {
-                              _animateSnapBack();
-                            }
-                          },
-                          onInspect: () =>
-                              unawaited(_openProjectDetail(activeProject)),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton.filledTonal(
-                              onPressed: () => _stepDeck(-1, filtered.length),
-                              icon: const Icon(Icons.chevron_left_rounded),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Text(
-                              'DRAG TO PEEK • ${safeIndex + 1} / ${filtered.length}',
-                              style: textTheme.labelLarge,
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            IconButton.filledTonal(
-                              onPressed: () => _stepDeck(1, filtered.length),
-                              icon: const Icon(Icons.chevron_right_rounded),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        for (var i = 0; i < filtered.length; i++) ...[
-                          _AnimatedQueueRow(
-                            project: filtered[i],
-                            selected: i == safeIndex,
-                            index: i,
-                            onSelect: () {
-                              _snapController.stop();
-                              setState(() {
-                                _activeIndex = i;
-                                _dragDx = 0;
-                              });
-                            },
-                            onOpen: () =>
-                                unawaited(_openProjectDetail(filtered[i])),
-                          ),
-                          if (i < filtered.length - 1)
-                            const SizedBox(height: AppSpacing.sm),
-                        ],
-                      ],
+                      FutureBuilder<List<_RankedProject>>(
+                        future: _buildLeaderboard(db, filtered),
+                        builder: (context, snapshot) {
+                          final ranked =
+                              snapshot.data ??
+                              [
+                                for (final p in filtered)
+                                  _RankedProject(
+                                    project: p,
+                                    avgScore: 0.0,
+                                    voteCount: 0,
+                                  ),
+                              ];
+
+                          return Column(
+                            children: [
+                              for (var i = 0; i < ranked.length; i++) ...[
+                                _ArcadeScoreRow(
+                                  rank: i + 1,
+                                  item: ranked[i],
+                                  onTap: () => unawaited(
+                                    _openProjectDetail(ranked[i].project),
+                                  ),
+                                ),
+                                if (i < ranked.length - 1)
+                                  const SizedBox(height: AppSpacing.md),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -351,342 +222,122 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen>
   }
 }
 
-class _StackedCardStage extends StatelessWidget {
-  const _StackedCardStage({
-    required this.activeProject,
-    required this.nextProject,
-    required this.thirdProject,
-    required this.activeIndex,
-    required this.dragDx,
-    required this.onPanStart,
-    required this.onPanUpdate,
-    required this.onPanEnd,
-    required this.onInspect,
+class _ArcadeScoreRow extends StatelessWidget {
+  const _ArcadeScoreRow({
+    required this.rank,
+    required this.item,
+    required this.onTap,
   });
 
-  final ShowcaseProject activeProject;
-  final ShowcaseProject? nextProject;
-  final ShowcaseProject? thirdProject;
-  final int activeIndex;
-  final double dragDx;
-  final GestureDragStartCallback onPanStart;
-  final GestureDragUpdateCallback onPanUpdate;
-  final GestureDragEndCallback onPanEnd;
-  final VoidCallback onInspect;
-
-  @override
-  Widget build(BuildContext context) {
-    final pullProgress = (dragDx.abs() / 140).clamp(0.0, 1.0);
-    final topTilt = (dragDx / 420).clamp(-0.14, 0.14);
-    // Under-card tilts subtly into view as top card pulls away.
-    final underTilt = (-dragDx / 950).clamp(-0.045, 0.045);
-    final underScale = 0.94 + (0.06 * pullProgress);
-    final underOffsetY = 14.0 * (1.0 - pullProgress);
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        if (thirdProject != null)
-          Transform.translate(
-            offset: const Offset(0, 24),
-            child: Transform.scale(
-              scale: 0.89,
-              alignment: Alignment.topCenter,
-              child: Opacity(
-                opacity: 0.45,
-                child: _ProjectDeckCardBody(
-                  project: thirdProject!,
-                  compactPreview: true,
-                ),
-              ),
-            ),
-          ),
-        if (nextProject != null)
-          Transform.translate(
-            offset: Offset(dragDx * 0.12, underOffsetY),
-            child: Transform.rotate(
-              angle: underTilt,
-              child: Transform.scale(
-                scale: underScale,
-                alignment: Alignment.topCenter,
-                child: Opacity(
-                  opacity: (0.72 + (0.28 * pullProgress)).clamp(0.0, 1.0),
-                  child: _ProjectDeckCardBody(
-                    project: nextProject!,
-                    compactPreview: true,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        GestureDetector(
-              onPanStart: onPanStart,
-              onPanUpdate: onPanUpdate,
-              onPanEnd: onPanEnd,
-              onTap: onInspect,
-              child: Transform.translate(
-                offset: Offset(dragDx, dragDx.abs() * 0.04),
-                child: Transform.rotate(
-                  angle: topTilt,
-                  child: _ProjectDeckCardBody(
-                    project: activeProject,
-                    dragDx: dragDx,
-                    onInspect: onInspect,
-                  ),
-                ),
-              ),
-            )
-            .animate(
-              key: ValueKey('stack_top_${activeProject.id}_$activeIndex'),
-              onPlay: (c) => c.repeat(reverse: true),
-            )
-            .moveY(
-              begin: -2.5,
-              end: 2.5,
-              duration: const Duration(milliseconds: 1800),
-              curve: Curves.easeInOutSine,
-            ),
-      ],
-    );
-  }
-}
-
-class _ProjectDeckCardBody extends StatelessWidget {
-  const _ProjectDeckCardBody({
-    required this.project,
-    this.dragDx = 0,
-    this.compactPreview = false,
-    this.onInspect,
-  });
-
-  final ShowcaseProject project;
-  final double dragDx;
-  final bool compactPreview;
-  final VoidCallback? onInspect;
+  final int rank;
+  final _RankedProject item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final project = item.project;
+    final isFirst = rank == 1;
+    final fillRatio = (item.avgScore / 5.0).clamp(0.0, 1.0);
+    final rankColor = switch (rank) {
+      1 => AppColors.solarGold,
+      2 => AppColors.electricCyan,
+      3 => AppColors.acidLime,
+      _ => project.accent,
+    };
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(
-          color: project.accent,
-          width: AppSpacing.borderThick,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: project.accent.withValues(alpha: 0.38),
-            offset: const Offset(5, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                color: project.accent,
-                child: Text(
-                  project.track,
-                  style: textTheme.labelLarge?.copyWith(
-                    color: AppColors.voidBlack,
-                    fontSize: 11,
-                  ),
-                ),
+    return InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceDark,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: isFirst ? AppColors.solarGold : project.accent,
+                width: isFirst ? AppSpacing.borderThick : AppSpacing.borderThin,
               ),
-              const Spacer(),
-              if (!compactPreview && dragDx.abs() > 24)
-                Text(
-                  dragDx > 0 ? 'NEXT >>>' : '<<< PREV',
-                  style: textTheme.labelLarge?.copyWith(
-                    color: AppColors.acidLime,
-                  ),
-                )
-              else
-                Icon(
-                  compactPreview ? Icons.layers_rounded : Icons.swipe_rounded,
-                  color: project.accent,
-                  size: 20,
+              boxShadow: [
+                BoxShadow(
+                  color: rankColor.withValues(alpha: isFirst ? 0.38 : 0.2),
+                  offset: Offset(isFirst ? 5 : 3, isFirst ? 5 : 3),
                 ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            project.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.headlineMedium?.copyWith(fontSize: 22),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            project.team,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.labelLarge?.copyWith(color: AppColors.solarGold),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            project.summary,
-            maxLines: compactPreview ? 2 : 3,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.bodyLarge,
-          ),
-          if (!compactPreview) ...[
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final tag in project.techStack) Chip(label: Text(tag)),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
-            FilledButton.icon(
-              onPressed: onInspect,
-              icon: const Icon(Icons.star_rate_rounded),
-              label: const Text('INSPECT & RATE'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _DeckStatPill extends StatelessWidget {
-  const _DeckStatPill({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  final String label;
-  final String value;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: accent, width: AppSpacing.borderThin),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.labelLarge?.copyWith(
-              color: AppColors.inkSecondary,
-              fontSize: 11,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.titleLarge?.copyWith(color: accent, fontSize: 20),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AnimatedQueueRow extends StatelessWidget {
-  const _AnimatedQueueRow({
-    required this.project,
-    required this.selected,
-    required this.index,
-    required this.onSelect,
-    required this.onOpen,
-  });
-
-  final ShowcaseProject project;
-  final bool selected;
-  final int index;
-  final VoidCallback onSelect;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return InkWell(
-      onTap: onSelect,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.surfaceElevated
-              : AppColors.surfaceDark.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-          border: Border.all(
-            color: selected ? project.accent : AppColors.gridLine,
-            width: selected ? AppSpacing.borderThick : AppSpacing.borderThin,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: project.accent,
-                    shape: BoxShape.circle,
-                  ),
-                )
-                .animate(onPlay: (c) => c.repeat(reverse: true))
-                .scaleXY(
-                  begin: 0.85,
-                  end: 1.35,
-                  delay: (index * 150).ms,
-                  duration: const Duration(milliseconds: 1100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xs,
+                      ),
+                      color: rankColor,
+                      child: Text(
+                        isFirst ? '#1 LEADER' : '#$rank',
+                        style: textTheme.labelLarge?.copyWith(
+                          color: AppColors.voidBlack,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        project.track,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.labelLarge?.copyWith(
+                          color: AppColors.inkSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      item.voteCount == 0
+                          ? 'NO VOTES YET'
+                          : '${item.avgScore.toStringAsFixed(1)} ★ (${item.voteCount})',
+                      style: textTheme.labelLarge?.copyWith(
+                        color: AppColors.solarGold,
+                      ),
+                    ),
+                  ],
                 ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    project.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.labelLarge,
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  project.title,
+                  style: textTheme.titleLarge?.copyWith(fontSize: 19),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  project.summary,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    height: 8,
+                    color: AppColors.surfaceElevated,
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: fillRatio > 0 ? fillRatio : 0.06,
+                      child: Container(color: rankColor),
+                    ),
                   ),
-                  Text(
-                    project.track,
-                    style: textTheme.bodyMedium?.copyWith(fontSize: 11),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            IconButton(
-              onPressed: onOpen,
-              icon: Icon(Icons.open_in_new_rounded, color: project.accent),
-            ),
-          ],
-        ),
-      ),
-    );
+          ),
+        )
+        .animate()
+        .fadeIn(delay: ((rank - 1) * 70).ms, duration: 260.ms)
+        .slideX(begin: -0.04, end: 0, delay: ((rank - 1) * 70).ms);
   }
 }
 
@@ -816,7 +467,7 @@ class _ProjectDetailDialogState extends ConsumerState<_ProjectDetailDialog> {
         ),
         const Divider(height: AppSpacing.xl, color: AppColors.gridLine),
         Text(
-          'RATE THIS PROJECT',
+          'VOTE FOR THIS PROJECT',
           textAlign: TextAlign.center,
           style: textTheme.labelLarge,
         ),
@@ -853,7 +504,7 @@ class _ProjectDetailDialogState extends ConsumerState<_ProjectDetailDialog> {
           onPressed: (!_submitting && _stars > 0)
               ? () => unawaited(_rateProject())
               : null,
-          child: Text(_submitting ? 'SAVING...' : 'SUBMIT RATING'),
+          child: Text(_submitting ? 'SAVING...' : 'SUBMIT VOTE'),
         ),
         if (_feedbackLine != null) ...[
           const SizedBox(height: AppSpacing.sm),
