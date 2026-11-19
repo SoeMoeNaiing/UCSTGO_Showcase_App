@@ -819,11 +819,13 @@ Every implementation message follows this exact template:
 - **Tests:** happy path; repository offline still yields success; `rejected` result → cooldown started + error message; invalid input → validation error; wiring test drives the real use case through the controller.
 - **Done:** unit test green.
 
-#### Iteration 22 — ThankYouCard ⬜
+#### Iteration 22 — ThankYouCard ✅ (2026-11-19)
 
 - **Build:** doodled character + speech bubble scribbling "Thank you!" with `flutter_animate` entrance (Rive deferred to Iteration 30), token-styled.
+- **Decision:** the character and bubble are two `CustomPainter`s (ink strokes, paper-white bubble fill, warm cheek) — no assets until Rive I30. The entrance genuinely needs choreography, so `flutter_animate` earns its dep here: `.animate().fadeIn().scaleXY(0.9→1).slideY(0.08→0)`. As in I19, the whole visual is one semantic node (`label: 'Thank you!'`) with the text excluded from its own subtree. **Every widget test that pumps this card must end in `pumpAndSettle()`**: `Animate` schedules a zero-delay timer in `initState` that otherwise trips the test framework's pending-timer check (the reason it was deferred from I19).
 - **Files:** `lib/features/feedback/presentation/widgets/thank_you_card.dart`.
 - **Tests:** appears on success state; text present; pumps through the entrance animation without exceptions.
+- **Deps:** `flutter_animate`.
 - **Done:** widget test green.
 
 #### Iteration 23 — RateProjectsPrompt ⬜

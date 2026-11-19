@@ -69,8 +69,8 @@ Visitor taps emoji
 - **M1 complete:** design tokens, `AppTheme`, `KioskScaffold` (26 tests).
 - **M2 complete (Phase 1):** local-first pipeline — domain entities, contracts, Drift queue, queue CRUD, `FeedbackRepositoryImpl` with an unplugged remote seam (**80 tests**).
 - **Phase 2 complete (M3):** `DeviceIdService`, `CooldownService`, `ConnectivityService`, `FeedbackModel` (exact §6.2 DTO + §6.6 table), `SyncService` (serial drain + 2→60s backoff), `SyncScheduler` (four coalesced triggers) — still zero network required.
-- **Phase 3 started:** `EmojiPicker` (tap/D-pad, focus frame, 2s throttle), `FeedbackController` (pure state machine), `SubmitFeedback` (idempotent local-first submit + cooldown) — **185 tests**.
-- **Next:** Iteration 22 — `ThankYouCard` with a doodled character, speech bubble, and `flutter_animate` entrance.
+- **Phase 3 started:** `EmojiPicker` (tap/D-pad, focus frame, 2s throttle), `FeedbackController` (pure state machine), `SubmitFeedback` (idempotent local-first submit + cooldown), `ThankYouCard` (doodled character + scribbled bubble) — **189 tests**.
+- **Next:** Iteration 23 — `RateProjectsPrompt` with focusable Yes/Skip actions.
 - **Phone preview:** `flutter run` now boots the **temporary interactive picker harness** — tap, Enter/D-pad, focus frame, and the 2s throttle work on the device. The full `FeedbackScreen` lands at **Iteration 24**; rating at **I29**; polished offline release APK at **I33**.
 - Dependencies land per iteration; see §10.2 of the process doc.
 - Git initialized with `origin` configured; every iteration commits.
@@ -104,4 +104,4 @@ flutter build apk --release       # Phase 5 artifact
 
 ## Next step
 
-**Iteration 22:** `ThankYouCard` — doodled character + scribbled speech bubble with a `flutter_animate` entrance, pumped through its animation in a widget test. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
+**Iteration 23:** `RateProjectsPrompt` — "Rate our projects?" with focusable **Yes** and **Skip**, both reachable by D-pad. See [§10.6 of PROJECT_PROCESS.md](PROJECT_PROCESS.md). 🚀
