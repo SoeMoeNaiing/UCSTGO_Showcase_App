@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'core/config/showcase_config.dart';
+import 'core/providers/showcase_providers.dart';
 import 'core/theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: ShowcaseBootstrapApp()));
+  final prefs = await SharedPreferences.getInstance();
+
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const UcStgoShowcaseApp(),
+    ),
+  );
 }
 
-class ShowcaseBootstrapApp extends StatelessWidget {
-  const ShowcaseBootstrapApp({super.key});
+class UcStgoShowcaseApp extends ConsumerWidget {
+  const UcStgoShowcaseApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+    return MaterialApp.router(
       title: 'UCSTGO Showcase',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      home: Scaffold(
-        body: Center(
-          child: Text(
-            ShowcaseConfig.institutionName,
-            style: Theme.of(context).textTheme.headlineMedium,
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
+      routerConfig: router,
     );
   }
 }
