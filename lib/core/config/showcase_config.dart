@@ -13,9 +13,12 @@ abstract final class ShowcaseConfig {
   static const String universityImageUrl =
       'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1400&q=85';
 
-  /// Paste your deployed Google Apps Script Web App URL here to enable
-  /// live syncing to Google Sheets. Leave empty for local-only mode.
-  static const String googleSheetsWebhookUrl = '';
+  /// Injected at build/run time via `--dart-define-from-file=dart_defines.json`.
+  /// Defaults to empty string for offline local-only mode.
+  static const String googleSheetsWebhookUrl = String.fromEnvironment(
+    'SHEETS_WEBHOOK_URL',
+    defaultValue: '',
+  );
 
   static bool get hasRemoteWebhook =>
       googleSheetsWebhookUrl.trim().startsWith('https://');

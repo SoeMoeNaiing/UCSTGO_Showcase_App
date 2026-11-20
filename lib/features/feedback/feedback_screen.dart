@@ -134,7 +134,6 @@ class FeedbackScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
-  bool _showRateChoice = false;
   String? _selectedReaction;
   final TextEditingController _noteController = TextEditingController();
   bool _submitting = false;
@@ -146,6 +145,121 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   void dispose() {
     _noteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showPostFeedbackDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF101726).withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.electricCyan.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'FEEDBACK RECORDED',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: AppColors.acidLime,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Want to rate student projects now?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'You can rate individual booths now or skip and head straight back to the landing screen.',
+                      style: TextStyle(fontSize: 13, color: Colors.white70),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
+                              context.go('/');
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.25),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'SKIP & HOME',
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
+                              context.go('/rating');
+                            },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.electricCyan,
+                              foregroundColor: AppColors.voidBlack,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'RATE PROJECTS',
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _submitFeedback() async {
@@ -184,7 +298,6 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
       );
 
       cooldown.recordSubmission(CooldownService.feedbackScope);
-      _showRateChoice = true;
       await ref.read(sheetsSyncServiceProvider).syncPending();
 
       if (!mounted) {
@@ -193,13 +306,10 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
 
       setState(() {
         _statusColor = AppColors.acidLime;
-        _statusMessage = 'THANKS FOR VISITING! OPENING PROJECT RATINGS...';
+        _statusMessage = 'FEEDBACK RECORDED.';
       });
 
-      await Future<void>.delayed(const Duration(milliseconds: 450));
-      if (mounted) {
-        context.go('/rating');
-      }
+      await _showPostFeedbackDialog();
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -247,7 +357,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'React to the student exhibition & booths, then rate individual projects.',
+              'React to the student exhibition & booths, then optionally rate individual projects.',
               style: textTheme.bodyMedium?.copyWith(color: Colors.white70),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -367,7 +477,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                   ? () => unawaited(_submitFeedback())
                   : null,
               child: Text(
-                _submitting ? 'SAVING...' : 'SUBMIT FEEDBACK TO RATE PROJECTS',
+                _submitting ? 'SAVING...' : 'SUBMIT FEEDBACK',
                 style: const TextStyle(
                   fontFamily: 'monospace',
                   fontWeight: FontWeight.w800,
@@ -383,154 +493,6 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 style: textTheme.labelLarge?.copyWith(
                   fontFamily: 'monospace',
                   color: _statusColor,
-                ),
-              ),
-            ],
-
-            const SizedBox(height: AppSpacing.md),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: const Color(0xFF101726).withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.electricCyan.withValues(alpha: 0.45),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'OPTIONAL // RATE STUDENT PROJECTS?',
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.electricCyan,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Rate projects now, or skip rating and return to the landing page.',
-                    style: TextStyle(fontSize: 13, color: Colors.white70),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => context.go('/'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.25),
-                            ),
-                          ),
-                          child: const Text(
-                            'SKIP & HOME',
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () => context.go('/rating'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.electricCyan,
-                            foregroundColor: AppColors.voidBlack,
-                          ),
-                          child: const Text(
-                            'RATE PROJECTS',
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            if (_showRateChoice) ...[
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF101726).withValues(alpha: 0.88),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.electricCyan.withValues(alpha: 0.45),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'FEEDBACK SUBMITTED // RATE PROJECTS?',
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.electricCyan,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Would you like to rate student projects now, or skip and return to the landing page?',
-                      style: TextStyle(fontSize: 13, color: Colors.white70),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => context.go('/'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: const Text(
-                              'SKIP & HOME',
-                              style: TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () => context.go('/rating'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.electricCyan,
-                              foregroundColor: AppColors.voidBlack,
-                            ),
-                            child: const Text(
-                              'RATE PROJECTS',
-                              style: TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
               ),
             ],

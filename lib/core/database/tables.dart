@@ -22,3 +22,20 @@ class ProjectRatings extends Table {
   DateTimeColumn get createdAt => dateTime()();
   BoolColumn get synced => boolean().withDefault(const Constant(false))();
 }
+
+/// Approved showcase projects synced from Google Sheets / web uploader catalog.
+class ShowcaseProjects extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get projectId => text().unique()();
+  TextColumn get title => text()();
+  TextColumn get track => text()();
+  TextColumn get summary => text().withDefault(const Constant(''))();
+  TextColumn get team => text().withDefault(const Constant(''))();
+  TextColumn get booth => text().withDefault(const Constant(''))();
+  TextColumn get imageUrl => text().nullable()();
+  TextColumn get techStackJson => text().withDefault(const Constant('[]'))();
+  TextColumn get accentHex => text().withDefault(const Constant('#00F5D4'))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  BoolColumn get approved => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get updatedAt => dateTime()();
+}

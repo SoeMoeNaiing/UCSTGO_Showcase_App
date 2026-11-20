@@ -7,7 +7,7 @@ import 'package:ucstgo_showcase_flutter_app/core/providers/showcase_providers.da
 import 'package:ucstgo_showcase_flutter_app/core/services/cooldown_service.dart';
 import 'package:ucstgo_showcase_flutter_app/core/theme/app_theme.dart';
 import 'package:ucstgo_showcase_flutter_app/features/feedback/feedback_screen.dart';
-import 'package:ucstgo_showcase_flutter_app/features/showcase/showcase_home_screen.dart';
+import 'package:ucstgo_showcase_flutter_app/features/rating/project_rating_screen.dart';
 
 void main() {
   late AppDatabase db;
@@ -24,7 +24,7 @@ void main() {
   });
 
   testWidgets(
-    'submits emotion feedback with pop dialog and enforces cooldown',
+    'submits emotion feedback with dialog and enforces cooldown',
     (tester) async {
       final cooldown = CooldownService(
         cooldownDuration: const Duration(seconds: 15),
@@ -44,21 +44,24 @@ void main() {
         ),
       );
 
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(find.text('MIND BLOWN'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('THANK YOU!'), findsOneWidget);
+      expect(find.text('FEEDBACK RECORDED.'), findsOneWidget);
       final rows = await db.getUnsyncedFeedback();
       expect(rows, hasLength(1));
       expect(rows.first.sentiment, 'mind_blown');
 
-      await tester.tap(find.text('STAY HERE'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('SKIP & HOME'));
+      await tester.pump(const Duration(milliseconds: 400));
 
       await tester.tap(find.text('LOVED IT'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('ANTI-SPAM COOLDOWN'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 5));
     },
   );
 
@@ -78,42 +81,42 @@ void main() {
         ],
         child: MaterialApp(
           theme: AppTheme.dark,
-          home: const ShowcaseHomeScreen(),
+          home: const ProjectRatingScreen(),
         ),
       ),
     );
 
-    await tester.pump();
-    expect(find.text('FEEDBACK'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('UCSTGO Interactive Showcase'), findsOneWidget);
 
-    // Rate project 1
     await tester.tap(find.text('UCSTGO Interactive Showcase'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.byIcon(Icons.star_outline_rounded).at(4));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('SUBMIT RATING'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
-    // Trying to rate project 1 again immediately shows per-project cooldown
     await tester.tap(find.text('SUBMIT RATING'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(
       find.textContaining('COOLDOWN FOR UCSTGO INTERACTIVE SHOWCASE'),
       findsOneWidget,
     );
 
-    // Close dialog and rate a DIFFERENT project immediately
     await tester.tap(find.byIcon(Icons.close_rounded));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
     await tester.tap(find.text('Campus Vision & Attendance AI'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.byIcon(Icons.star_outline_rounded).at(3));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('SUBMIT RATING'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
     final ratings = await db.getUnsyncedRatings();
     expect(ratings, hasLength(2));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 5));
   });
 }

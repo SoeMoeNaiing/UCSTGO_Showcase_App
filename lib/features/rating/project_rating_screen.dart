@@ -174,7 +174,7 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Select a project card to cast a 1-5 star rating.',
+                      'Tap any project to cast a 1-5 star rating and rate as many booths as you like.',
                       style: textTheme.bodyMedium?.copyWith(
                         color: Colors.white70,
                       ),
@@ -299,77 +299,90 @@ class _ExpandableRatingLeaderboardState
               color: AppColors.electricCyan.withValues(alpha: 0.35),
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => setState(() => _expanded = !_expanded),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.electricCyan,
-                          shape: BoxShape.circle,
-                        ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compactHeader = constraints.maxWidth < 360;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => setState(() => _expanded = !_expanded),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.electricCyan,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              compactHeader
+                                  ? 'LIVE STANDINGS'
+                                  : 'LIVE STANDINGS // LEADERBOARD',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.electricCyan,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _expanded
+                                ? 'COLLAPSE'
+                                : 'EXPAND (${sorted.length})',
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            _expanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'LIVE STANDINGS // LEADERBOARD',
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.electricCyan,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        _expanded ? 'COLLAPSE' : 'EXPAND (${sorted.length})',
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        _expanded
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        color: Colors.white70,
-                        size: 18,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: Column(
-                  children: [
-                    for (var idx = 0; idx < visibleRows.length; idx++) ...[
-                      _LeaderboardRankRow(
-                        rank: idx + 1,
-                        project: visibleRows[idx],
-                        stat: widget.scoresById[visibleRows[idx].id],
-                      ),
-                      if (idx < visibleRows.length - 1)
-                        const SizedBox(height: 8),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: Column(
+                      children: [
+                        for (var idx = 0; idx < visibleRows.length; idx++) ...[
+                          _LeaderboardRankRow(
+                            rank: idx + 1,
+                            project: visibleRows[idx],
+                            stat: widget.scoresById[visibleRows[idx].id],
+                          ),
+                          if (idx < visibleRows.length - 1)
+                            const SizedBox(height: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -390,9 +403,9 @@ class _LeaderboardRankRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avgText = stat != null && stat!.count > 0
-        ? '${stat!.avg.toStringAsFixed(1)} (${stat!.count})'
-        : '0.0 (0)';
+    final hasVotes = stat != null && stat!.count > 0;
+    final avgText = hasVotes ? stat!.avg.toStringAsFixed(1) : '0.0';
+    final countText = '${stat?.count ?? 0}';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -401,55 +414,91 @@ class _LeaderboardRankRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 26,
-            child: Text(
-              '#$rank',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: rank == 1 ? AppColors.solarGold : project.accent,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  project.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  project.track,
-                  style: const TextStyle(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 330;
+          return Row(
+            children: [
+              SizedBox(
+                width: 28,
+                child: Text(
+                  '#$rank',
+                  style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: 10,
-                    color: Colors.white54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: rank == 1 ? AppColors.solarGold : project.accent,
                   ),
                 ),
-              ],
-            ),
-          ),
-          Text(
-            avgText,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-        ],
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      project.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      narrow
+                          ? '${project.track} • $countText votes'
+                          : project.track,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 10,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SvgPicture.string(
+                      _svgStarFilled,
+                      width: 12,
+                      height: 12,
+                      colorFilter: ColorFilter.mode(
+                        hasVotes ? AppColors.solarGold : Colors.white38,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      narrow ? avgText : '$avgText ($countText)',
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -487,26 +536,30 @@ class _GlassProjectCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: project.accent.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      project.track,
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: project.accent,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: project.accent.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        project.track,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: project.accent,
+                        ),
                       ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   SvgPicture.string(
                     _svgStarFilled,
                     width: 14,
@@ -664,23 +717,29 @@ class _GlassRatingDialogState extends ConsumerState<_GlassRatingDialog> {
       children: [
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: project.accent.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                project.track,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: project.accent,
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: project.accent.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  project.track,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: project.accent,
+                  ),
                 ),
               ),
             ),
-            const Spacer(),
             IconButton(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.close_rounded, color: Colors.white70),
@@ -706,15 +765,17 @@ class _GlassRatingDialogState extends ConsumerState<_GlassRatingDialog> {
           style: const TextStyle(fontSize: 13, color: Colors.white70),
         ),
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
           children: [
             for (var s = 1; s <= 5; s++)
               GestureDetector(
                 onTap: _submitting ? null : () => setState(() => _stars = s),
                 child:
                     Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: SvgPicture.string(
                             s <= _stars ? _svgStarFilled : _svgStarOutline,
                             width: 34,
@@ -767,28 +828,6 @@ class _GlassRatingDialogState extends ConsumerState<_GlassRatingDialog> {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: _statusColor,
-            ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.go('/');
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'BACK TO HOME',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
             ),
           ),
         ],

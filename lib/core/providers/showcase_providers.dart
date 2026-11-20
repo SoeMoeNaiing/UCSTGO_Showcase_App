@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +23,8 @@ class ShowcaseProject {
     required this.team,
     required this.techStack,
     required this.accent,
+    this.booth = '',
+    this.imageUrl,
   });
 
   final String id;
@@ -30,6 +34,48 @@ class ShowcaseProject {
   final String team;
   final List<String> techStack;
   final Color accent;
+  final String booth;
+  final String? imageUrl;
+
+  factory ShowcaseProject.fromRow(ShowcaseProjectRow row) {
+    final parsedStack = _decodeTechStack(row.techStackJson);
+    return ShowcaseProject(
+      id: row.projectId,
+      title: row.title,
+      track: row.track,
+      summary: row.summary,
+      team: row.team,
+      booth: row.booth,
+      imageUrl: row.imageUrl,
+      techStack: parsedStack,
+      accent: _parseHexColor(row.accentHex),
+    );
+  }
+
+  static List<String> _decodeTechStack(String rawJson) {
+    try {
+      final decoded = jsonDecode(rawJson);
+      if (decoded is List) {
+        return decoded
+            .map((e) => e.toString().trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  static Color _parseHexColor(String hex) {
+    final cleaned = hex.trim().replaceFirst('#', '');
+    if (cleaned.length == 6 || cleaned.length == 8) {
+      final fullHex = cleaned.length == 6 ? 'FF$cleaned' : cleaned;
+      final value = int.tryParse(fullHex, radix: 16);
+      if (value != null) {
+        return Color(value);
+      }
+    }
+    return AppColors.electricCyan;
+  }
 }
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
@@ -56,45 +102,37 @@ final sheetsSyncServiceProvider = Provider<SheetsSyncService>((ref) {
   return SheetsSyncService(database: db);
 });
 
+/// Reactive stream of approved showcase projects stored in local SQLite.
+final approvedProjectsStreamProvider = StreamProvider<List<ShowcaseProject>>((
+  ref,
+) {
+  final db = ref.watch(appDatabaseProvider);
+  return db.watchApprovedProjects().map(
+    (rows) => rows.map(ShowcaseProject.fromRow).toList(),
+  );
+});
+
+/// Synchronous snapshot list for screens expecting `List<ShowcaseProject>`.
 final showcaseProjectsProvider = Provider<List<ShowcaseProject>>((ref) {
-  return const [
-    ShowcaseProject(
-      id: 'proj-campus-kiosk',
-      title: 'UCSTGO Interactive Showcase',
-      track: 'MOBILE & UI',
-      summary: 'Offline-first interactive showcase hub with local Drift SQLite persistence, Google Sheets webhook sync, and kinetic motion.',
-      team: 'CS Final Year • Team Alpha',
-      techStack: ['Flutter', 'Drift SQLite', 'Riverpod', 'Apps Script'],
-      accent: AppColors.electricCyan,
-    ),
-    ShowcaseProject(
-      id: 'proj-vision-lab',
-      title: 'Campus Vision & Attendance AI',
-      track: 'AI / ML',
-      summary: 'Real-time edge computer vision pipeline for lecture hall occupancy analytics and automated lab check-ins.',
-      team: 'AI Research Group • UCSTGO',
-      techStack: ['Python', 'OpenCV', 'TensorFlow Lite', 'FastAPI'],
-      accent: AppColors.acidLime,
-    ),
-    ShowcaseProject(
-      id: 'proj-sys-monitor',
-      title: 'Linux Kernel & Process Visualizer',
-      track: 'SYSTEMS & OS',
-      summary: 'Interactive CPU scheduler and memory paging simulator demonstrating FCFS, SRT, LRU, and Banker deadlock avoidance.',
-      team: 'Systems Lab • Batch 2026',
-      techStack: ['C++', 'Linux', 'WebSockets', 'Dart'],
-      accent: AppColors.hyperCoral,
-    ),
-    ShowcaseProject(
-      id: 'proj-smart-hostel',
-      title: 'Smart Hostel & Roll-Call Hub',
-      track: 'FULL-STACK',
-      summary: 'Digital room allocation and nightly roll-call management across two campus residence floors with instant reporting.',
-      team: 'Software Engineering Track',
-      techStack: ['Java', 'MySQL', 'REST API', 'Flutter'],
-      accent: AppColors.solarGold,
-    ),
-  ];
+  final asyncProjects = ref.watch(approvedProjectsStreamProvider);
+  return asyncProjects.maybeWhen(
+    data: (items) => items,
+    orElse: () => const [],
+  );
+});
+
+/// Dynamic tracks derived from approved SQLite projects.
+final activeTracksProvider = FutureProvider<List<String>>((ref) async {
+  ref.watch(approvedProjectsStreamProvider);
+  final db = ref.watch(appDatabaseProvider);
+  return db.getActiveTracks();
+});
+
+final catalogSyncProvider = FutureProvider.autoDispose<CatalogSyncResult>((
+  ref,
+) async {
+  final syncService = ref.watch(sheetsSyncServiceProvider);
+  return syncService.pullCatalog();
 });
 
 final appRouterProvider = Provider<GoRouter>((ref) {
