@@ -3,6 +3,8 @@ typedef Clock = DateTime Function();
 /// Per-scope rate limiter / cooldown guard to prevent button-mashing
 /// or spam submissions while keeping separate items independent.
 class CooldownService {
+  static const Duration feedbackCooldown = Duration(seconds: 5);
+
   CooldownService({
     this.cooldownDuration = const Duration(seconds: 15),
     Clock? clock,

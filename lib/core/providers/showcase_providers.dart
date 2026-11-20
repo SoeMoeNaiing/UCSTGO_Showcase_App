@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/feedback/feedback_screen.dart';
+import '../../features/rating/project_rating_screen.dart';
 import '../../features/showcase/showcase_home_screen.dart';
 import '../database/app_database.dart';
 import '../services/cooldown_service.dart';
@@ -109,6 +110,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return FadeTransition(opacity: animation, child: child);
           },
         ),
+      ),
+      GoRoute(
+        path: '/rating',
+        builder: (context, state) => const ProjectRatingScreen(),
       ),
       GoRoute(
         path: '/feedback',
