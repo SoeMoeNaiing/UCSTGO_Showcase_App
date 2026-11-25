@@ -951,6 +951,737 @@ class ProjectRatingsCompanion extends UpdateCompanion<ProjectRating> {
   }
 }
 
+class $ShowcaseProjectsTable extends ShowcaseProjects
+    with TableInfo<$ShowcaseProjectsTable, ShowcaseProjectRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ShowcaseProjectsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _projectIdMeta = const VerificationMeta(
+    'projectId',
+  );
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+    'project_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trackMeta = const VerificationMeta('track');
+  @override
+  late final GeneratedColumn<String> track = GeneratedColumn<String>(
+    'track',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _summaryMeta = const VerificationMeta(
+    'summary',
+  );
+  @override
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+    'summary',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _teamMeta = const VerificationMeta('team');
+  @override
+  late final GeneratedColumn<String> team = GeneratedColumn<String>(
+    'team',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _boothMeta = const VerificationMeta('booth');
+  @override
+  late final GeneratedColumn<String> booth = GeneratedColumn<String>(
+    'booth',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _imageUrlMeta = const VerificationMeta(
+    'imageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> imageUrl = GeneratedColumn<String>(
+    'image_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _techStackJsonMeta = const VerificationMeta(
+    'techStackJson',
+  );
+  @override
+  late final GeneratedColumn<String> techStackJson = GeneratedColumn<String>(
+    'tech_stack_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _accentHexMeta = const VerificationMeta(
+    'accentHex',
+  );
+  @override
+  late final GeneratedColumn<String> accentHex = GeneratedColumn<String>(
+    'accent_hex',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('#00F5D4'),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _approvedMeta = const VerificationMeta(
+    'approved',
+  );
+  @override
+  late final GeneratedColumn<bool> approved = GeneratedColumn<bool>(
+    'approved',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("approved" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    projectId,
+    title,
+    track,
+    summary,
+    team,
+    booth,
+    imageUrl,
+    techStackJson,
+    accentHex,
+    sortOrder,
+    approved,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'showcase_projects';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ShowcaseProjectRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('project_id')) {
+      context.handle(
+        _projectIdMeta,
+        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_projectIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('track')) {
+      context.handle(
+        _trackMeta,
+        track.isAcceptableOrUnknown(data['track']!, _trackMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackMeta);
+    }
+    if (data.containsKey('summary')) {
+      context.handle(
+        _summaryMeta,
+        summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
+      );
+    }
+    if (data.containsKey('team')) {
+      context.handle(
+        _teamMeta,
+        team.isAcceptableOrUnknown(data['team']!, _teamMeta),
+      );
+    }
+    if (data.containsKey('booth')) {
+      context.handle(
+        _boothMeta,
+        booth.isAcceptableOrUnknown(data['booth']!, _boothMeta),
+      );
+    }
+    if (data.containsKey('image_url')) {
+      context.handle(
+        _imageUrlMeta,
+        imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta),
+      );
+    }
+    if (data.containsKey('tech_stack_json')) {
+      context.handle(
+        _techStackJsonMeta,
+        techStackJson.isAcceptableOrUnknown(
+          data['tech_stack_json']!,
+          _techStackJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('accent_hex')) {
+      context.handle(
+        _accentHexMeta,
+        accentHex.isAcceptableOrUnknown(data['accent_hex']!, _accentHexMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('approved')) {
+      context.handle(
+        _approvedMeta,
+        approved.isAcceptableOrUnknown(data['approved']!, _approvedMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ShowcaseProjectRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ShowcaseProjectRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      projectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}project_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      track: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track'],
+      )!,
+      summary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}summary'],
+      )!,
+      team: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}team'],
+      )!,
+      booth: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booth'],
+      )!,
+      imageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_url'],
+      ),
+      techStackJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tech_stack_json'],
+      )!,
+      accentHex: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}accent_hex'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      approved: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}approved'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ShowcaseProjectsTable createAlias(String alias) {
+    return $ShowcaseProjectsTable(attachedDatabase, alias);
+  }
+}
+
+class ShowcaseProjectRow extends DataClass
+    implements Insertable<ShowcaseProjectRow> {
+  final int id;
+  final String projectId;
+  final String title;
+  final String track;
+  final String summary;
+  final String team;
+  final String booth;
+  final String? imageUrl;
+  final String techStackJson;
+  final String accentHex;
+  final int sortOrder;
+  final bool approved;
+  final DateTime updatedAt;
+  const ShowcaseProjectRow({
+    required this.id,
+    required this.projectId,
+    required this.title,
+    required this.track,
+    required this.summary,
+    required this.team,
+    required this.booth,
+    this.imageUrl,
+    required this.techStackJson,
+    required this.accentHex,
+    required this.sortOrder,
+    required this.approved,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['project_id'] = Variable<String>(projectId);
+    map['title'] = Variable<String>(title);
+    map['track'] = Variable<String>(track);
+    map['summary'] = Variable<String>(summary);
+    map['team'] = Variable<String>(team);
+    map['booth'] = Variable<String>(booth);
+    if (!nullToAbsent || imageUrl != null) {
+      map['image_url'] = Variable<String>(imageUrl);
+    }
+    map['tech_stack_json'] = Variable<String>(techStackJson);
+    map['accent_hex'] = Variable<String>(accentHex);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['approved'] = Variable<bool>(approved);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ShowcaseProjectsCompanion toCompanion(bool nullToAbsent) {
+    return ShowcaseProjectsCompanion(
+      id: Value(id),
+      projectId: Value(projectId),
+      title: Value(title),
+      track: Value(track),
+      summary: Value(summary),
+      team: Value(team),
+      booth: Value(booth),
+      imageUrl: imageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageUrl),
+      techStackJson: Value(techStackJson),
+      accentHex: Value(accentHex),
+      sortOrder: Value(sortOrder),
+      approved: Value(approved),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ShowcaseProjectRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ShowcaseProjectRow(
+      id: serializer.fromJson<int>(json['id']),
+      projectId: serializer.fromJson<String>(json['projectId']),
+      title: serializer.fromJson<String>(json['title']),
+      track: serializer.fromJson<String>(json['track']),
+      summary: serializer.fromJson<String>(json['summary']),
+      team: serializer.fromJson<String>(json['team']),
+      booth: serializer.fromJson<String>(json['booth']),
+      imageUrl: serializer.fromJson<String?>(json['imageUrl']),
+      techStackJson: serializer.fromJson<String>(json['techStackJson']),
+      accentHex: serializer.fromJson<String>(json['accentHex']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      approved: serializer.fromJson<bool>(json['approved']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'projectId': serializer.toJson<String>(projectId),
+      'title': serializer.toJson<String>(title),
+      'track': serializer.toJson<String>(track),
+      'summary': serializer.toJson<String>(summary),
+      'team': serializer.toJson<String>(team),
+      'booth': serializer.toJson<String>(booth),
+      'imageUrl': serializer.toJson<String?>(imageUrl),
+      'techStackJson': serializer.toJson<String>(techStackJson),
+      'accentHex': serializer.toJson<String>(accentHex),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'approved': serializer.toJson<bool>(approved),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ShowcaseProjectRow copyWith({
+    int? id,
+    String? projectId,
+    String? title,
+    String? track,
+    String? summary,
+    String? team,
+    String? booth,
+    Value<String?> imageUrl = const Value.absent(),
+    String? techStackJson,
+    String? accentHex,
+    int? sortOrder,
+    bool? approved,
+    DateTime? updatedAt,
+  }) => ShowcaseProjectRow(
+    id: id ?? this.id,
+    projectId: projectId ?? this.projectId,
+    title: title ?? this.title,
+    track: track ?? this.track,
+    summary: summary ?? this.summary,
+    team: team ?? this.team,
+    booth: booth ?? this.booth,
+    imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
+    techStackJson: techStackJson ?? this.techStackJson,
+    accentHex: accentHex ?? this.accentHex,
+    sortOrder: sortOrder ?? this.sortOrder,
+    approved: approved ?? this.approved,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ShowcaseProjectRow copyWithCompanion(ShowcaseProjectsCompanion data) {
+    return ShowcaseProjectRow(
+      id: data.id.present ? data.id.value : this.id,
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      title: data.title.present ? data.title.value : this.title,
+      track: data.track.present ? data.track.value : this.track,
+      summary: data.summary.present ? data.summary.value : this.summary,
+      team: data.team.present ? data.team.value : this.team,
+      booth: data.booth.present ? data.booth.value : this.booth,
+      imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
+      techStackJson: data.techStackJson.present
+          ? data.techStackJson.value
+          : this.techStackJson,
+      accentHex: data.accentHex.present ? data.accentHex.value : this.accentHex,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      approved: data.approved.present ? data.approved.value : this.approved,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShowcaseProjectRow(')
+          ..write('id: $id, ')
+          ..write('projectId: $projectId, ')
+          ..write('title: $title, ')
+          ..write('track: $track, ')
+          ..write('summary: $summary, ')
+          ..write('team: $team, ')
+          ..write('booth: $booth, ')
+          ..write('imageUrl: $imageUrl, ')
+          ..write('techStackJson: $techStackJson, ')
+          ..write('accentHex: $accentHex, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('approved: $approved, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    projectId,
+    title,
+    track,
+    summary,
+    team,
+    booth,
+    imageUrl,
+    techStackJson,
+    accentHex,
+    sortOrder,
+    approved,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ShowcaseProjectRow &&
+          other.id == this.id &&
+          other.projectId == this.projectId &&
+          other.title == this.title &&
+          other.track == this.track &&
+          other.summary == this.summary &&
+          other.team == this.team &&
+          other.booth == this.booth &&
+          other.imageUrl == this.imageUrl &&
+          other.techStackJson == this.techStackJson &&
+          other.accentHex == this.accentHex &&
+          other.sortOrder == this.sortOrder &&
+          other.approved == this.approved &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ShowcaseProjectsCompanion extends UpdateCompanion<ShowcaseProjectRow> {
+  final Value<int> id;
+  final Value<String> projectId;
+  final Value<String> title;
+  final Value<String> track;
+  final Value<String> summary;
+  final Value<String> team;
+  final Value<String> booth;
+  final Value<String?> imageUrl;
+  final Value<String> techStackJson;
+  final Value<String> accentHex;
+  final Value<int> sortOrder;
+  final Value<bool> approved;
+  final Value<DateTime> updatedAt;
+  const ShowcaseProjectsCompanion({
+    this.id = const Value.absent(),
+    this.projectId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.track = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.team = const Value.absent(),
+    this.booth = const Value.absent(),
+    this.imageUrl = const Value.absent(),
+    this.techStackJson = const Value.absent(),
+    this.accentHex = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.approved = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  ShowcaseProjectsCompanion.insert({
+    this.id = const Value.absent(),
+    required String projectId,
+    required String title,
+    required String track,
+    this.summary = const Value.absent(),
+    this.team = const Value.absent(),
+    this.booth = const Value.absent(),
+    this.imageUrl = const Value.absent(),
+    this.techStackJson = const Value.absent(),
+    this.accentHex = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.approved = const Value.absent(),
+    required DateTime updatedAt,
+  }) : projectId = Value(projectId),
+       title = Value(title),
+       track = Value(track),
+       updatedAt = Value(updatedAt);
+  static Insertable<ShowcaseProjectRow> custom({
+    Expression<int>? id,
+    Expression<String>? projectId,
+    Expression<String>? title,
+    Expression<String>? track,
+    Expression<String>? summary,
+    Expression<String>? team,
+    Expression<String>? booth,
+    Expression<String>? imageUrl,
+    Expression<String>? techStackJson,
+    Expression<String>? accentHex,
+    Expression<int>? sortOrder,
+    Expression<bool>? approved,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (projectId != null) 'project_id': projectId,
+      if (title != null) 'title': title,
+      if (track != null) 'track': track,
+      if (summary != null) 'summary': summary,
+      if (team != null) 'team': team,
+      if (booth != null) 'booth': booth,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (techStackJson != null) 'tech_stack_json': techStackJson,
+      if (accentHex != null) 'accent_hex': accentHex,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (approved != null) 'approved': approved,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  ShowcaseProjectsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? projectId,
+    Value<String>? title,
+    Value<String>? track,
+    Value<String>? summary,
+    Value<String>? team,
+    Value<String>? booth,
+    Value<String?>? imageUrl,
+    Value<String>? techStackJson,
+    Value<String>? accentHex,
+    Value<int>? sortOrder,
+    Value<bool>? approved,
+    Value<DateTime>? updatedAt,
+  }) {
+    return ShowcaseProjectsCompanion(
+      id: id ?? this.id,
+      projectId: projectId ?? this.projectId,
+      title: title ?? this.title,
+      track: track ?? this.track,
+      summary: summary ?? this.summary,
+      team: team ?? this.team,
+      booth: booth ?? this.booth,
+      imageUrl: imageUrl ?? this.imageUrl,
+      techStackJson: techStackJson ?? this.techStackJson,
+      accentHex: accentHex ?? this.accentHex,
+      sortOrder: sortOrder ?? this.sortOrder,
+      approved: approved ?? this.approved,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (track.present) {
+      map['track'] = Variable<String>(track.value);
+    }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
+    if (team.present) {
+      map['team'] = Variable<String>(team.value);
+    }
+    if (booth.present) {
+      map['booth'] = Variable<String>(booth.value);
+    }
+    if (imageUrl.present) {
+      map['image_url'] = Variable<String>(imageUrl.value);
+    }
+    if (techStackJson.present) {
+      map['tech_stack_json'] = Variable<String>(techStackJson.value);
+    }
+    if (accentHex.present) {
+      map['accent_hex'] = Variable<String>(accentHex.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (approved.present) {
+      map['approved'] = Variable<bool>(approved.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShowcaseProjectsCompanion(')
+          ..write('id: $id, ')
+          ..write('projectId: $projectId, ')
+          ..write('title: $title, ')
+          ..write('track: $track, ')
+          ..write('summary: $summary, ')
+          ..write('team: $team, ')
+          ..write('booth: $booth, ')
+          ..write('imageUrl: $imageUrl, ')
+          ..write('techStackJson: $techStackJson, ')
+          ..write('accentHex: $accentHex, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('approved: $approved, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -958,6 +1689,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $ProjectRatingsTable projectRatings = $ProjectRatingsTable(this);
+  late final $ShowcaseProjectsTable showcaseProjects = $ShowcaseProjectsTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -965,6 +1699,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     feedbackEntries,
     projectRatings,
+    showcaseProjects,
   ];
 }
 
@@ -1475,6 +2210,375 @@ typedef $$ProjectRatingsTableProcessedTableManager =
       ProjectRating,
       PrefetchHooks Function()
     >;
+typedef $$ShowcaseProjectsTableCreateCompanionBuilder =
+    ShowcaseProjectsCompanion Function({
+      Value<int> id,
+      required String projectId,
+      required String title,
+      required String track,
+      Value<String> summary,
+      Value<String> team,
+      Value<String> booth,
+      Value<String?> imageUrl,
+      Value<String> techStackJson,
+      Value<String> accentHex,
+      Value<int> sortOrder,
+      Value<bool> approved,
+      required DateTime updatedAt,
+    });
+typedef $$ShowcaseProjectsTableUpdateCompanionBuilder =
+    ShowcaseProjectsCompanion Function({
+      Value<int> id,
+      Value<String> projectId,
+      Value<String> title,
+      Value<String> track,
+      Value<String> summary,
+      Value<String> team,
+      Value<String> booth,
+      Value<String?> imageUrl,
+      Value<String> techStackJson,
+      Value<String> accentHex,
+      Value<int> sortOrder,
+      Value<bool> approved,
+      Value<DateTime> updatedAt,
+    });
+
+class $$ShowcaseProjectsTableFilterComposer
+    extends Composer<_$AppDatabase, $ShowcaseProjectsTable> {
+  $$ShowcaseProjectsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get projectId => $composableBuilder(
+    column: $table.projectId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get team => $composableBuilder(
+    column: $table.team,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get booth => $composableBuilder(
+    column: $table.booth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get techStackJson => $composableBuilder(
+    column: $table.techStackJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accentHex => $composableBuilder(
+    column: $table.accentHex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get approved => $composableBuilder(
+    column: $table.approved,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ShowcaseProjectsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ShowcaseProjectsTable> {
+  $$ShowcaseProjectsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get projectId => $composableBuilder(
+    column: $table.projectId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get team => $composableBuilder(
+    column: $table.team,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get booth => $composableBuilder(
+    column: $table.booth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get techStackJson => $composableBuilder(
+    column: $table.techStackJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accentHex => $composableBuilder(
+    column: $table.accentHex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get approved => $composableBuilder(
+    column: $table.approved,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ShowcaseProjectsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ShowcaseProjectsTable> {
+  $$ShowcaseProjectsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get projectId =>
+      $composableBuilder(column: $table.projectId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get track =>
+      $composableBuilder(column: $table.track, builder: (column) => column);
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<String> get team =>
+      $composableBuilder(column: $table.team, builder: (column) => column);
+
+  GeneratedColumn<String> get booth =>
+      $composableBuilder(column: $table.booth, builder: (column) => column);
+
+  GeneratedColumn<String> get imageUrl =>
+      $composableBuilder(column: $table.imageUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get techStackJson => $composableBuilder(
+    column: $table.techStackJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get accentHex =>
+      $composableBuilder(column: $table.accentHex, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get approved =>
+      $composableBuilder(column: $table.approved, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ShowcaseProjectsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ShowcaseProjectsTable,
+          ShowcaseProjectRow,
+          $$ShowcaseProjectsTableFilterComposer,
+          $$ShowcaseProjectsTableOrderingComposer,
+          $$ShowcaseProjectsTableAnnotationComposer,
+          $$ShowcaseProjectsTableCreateCompanionBuilder,
+          $$ShowcaseProjectsTableUpdateCompanionBuilder,
+          (
+            ShowcaseProjectRow,
+            BaseReferences<
+              _$AppDatabase,
+              $ShowcaseProjectsTable,
+              ShowcaseProjectRow
+            >,
+          ),
+          ShowcaseProjectRow,
+          PrefetchHooks Function()
+        > {
+  $$ShowcaseProjectsTableTableManager(
+    _$AppDatabase db,
+    $ShowcaseProjectsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShowcaseProjectsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShowcaseProjectsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShowcaseProjectsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> projectId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> track = const Value.absent(),
+                Value<String> summary = const Value.absent(),
+                Value<String> team = const Value.absent(),
+                Value<String> booth = const Value.absent(),
+                Value<String?> imageUrl = const Value.absent(),
+                Value<String> techStackJson = const Value.absent(),
+                Value<String> accentHex = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> approved = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => ShowcaseProjectsCompanion(
+                id: id,
+                projectId: projectId,
+                title: title,
+                track: track,
+                summary: summary,
+                team: team,
+                booth: booth,
+                imageUrl: imageUrl,
+                techStackJson: techStackJson,
+                accentHex: accentHex,
+                sortOrder: sortOrder,
+                approved: approved,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String projectId,
+                required String title,
+                required String track,
+                Value<String> summary = const Value.absent(),
+                Value<String> team = const Value.absent(),
+                Value<String> booth = const Value.absent(),
+                Value<String?> imageUrl = const Value.absent(),
+                Value<String> techStackJson = const Value.absent(),
+                Value<String> accentHex = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> approved = const Value.absent(),
+                required DateTime updatedAt,
+              }) => ShowcaseProjectsCompanion.insert(
+                id: id,
+                projectId: projectId,
+                title: title,
+                track: track,
+                summary: summary,
+                team: team,
+                booth: booth,
+                imageUrl: imageUrl,
+                techStackJson: techStackJson,
+                accentHex: accentHex,
+                sortOrder: sortOrder,
+                approved: approved,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ShowcaseProjectsTable, ShowcaseProjectRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ShowcaseProjectsTable,
+                    ShowcaseProjectRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ShowcaseProjectsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ShowcaseProjectsTable,
+      ShowcaseProjectRow,
+      $$ShowcaseProjectsTableFilterComposer,
+      $$ShowcaseProjectsTableOrderingComposer,
+      $$ShowcaseProjectsTableAnnotationComposer,
+      $$ShowcaseProjectsTableCreateCompanionBuilder,
+      $$ShowcaseProjectsTableUpdateCompanionBuilder,
+      (
+        ShowcaseProjectRow,
+        BaseReferences<
+          _$AppDatabase,
+          $ShowcaseProjectsTable,
+          ShowcaseProjectRow
+        >,
+      ),
+      ShowcaseProjectRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1483,4 +2587,6 @@ class $AppDatabaseManager {
       $$FeedbackEntriesTableTableManager(_db, _db.feedbackEntries);
   $$ProjectRatingsTableTableManager get projectRatings =>
       $$ProjectRatingsTableTableManager(_db, _db.projectRatings);
+  $$ShowcaseProjectsTableTableManager get showcaseProjects =>
+      $$ShowcaseProjectsTableTableManager(_db, _db.showcaseProjects);
 }

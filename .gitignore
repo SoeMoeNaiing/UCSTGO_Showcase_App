@@ -55,3 +55,11 @@ android/key.properties
 
 # Supabase local state (§12)
 supabase/.branches/
+
+# Local webhook URLs, secrets, and uploader configs (never commit)
+.env
+.env.*
+*.env
+dart_defines.json
+local_config.json
+uploader_config.js

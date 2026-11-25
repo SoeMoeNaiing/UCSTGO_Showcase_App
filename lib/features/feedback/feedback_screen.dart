@@ -1,35 +1,130 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/providers/showcase_providers.dart';
-import '../../core/services/cooldown_service.dart';
+import 'feedback_controller.dart';
+import '../../core/controllers/kiosk_idle_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_typography.dart';
-import '../../core/widgets/live_ticker_bar.dart';
-import '../../core/widgets/maximalist_backdrop.dart';
-import '../../core/widgets/pop_modal.dart';
 
-enum VisitorEmotion {
-  mindBlown('mind_blown', 'MIND BLOWN', '🤯', AppColors.neonMagenta),
-  lovedIt('loved', 'LOVED IT', '🤩', AppColors.acidLime),
-  inspired('inspired', 'INSPIRED', '🚀', AppColors.electricCyan),
-  okay('okay', 'PRETTY GOOD', '🙂', AppColors.solarGold),
-  confused('confused', 'CONFUSED', '🤔', AppColors.inkPrimary),
-  needsWork('needs_work', 'NEEDS WORK', '🛠️', AppColors.hyperCoral);
+class _ColorfulReaction {
+  const _ColorfulReaction({
+    required this.id,
+    required this.label,
+    required this.subtitle,
+    required this.accent,
+    required this.svg,
+  });
 
-  const VisitorEmotion(this.code, this.label, this.emoji, this.accent);
-
-  final String code;
+  final String id;
   final String label;
-  final String emoji;
+  final String subtitle;
   final Color accent;
+  final String svg;
 }
+
+const List<_ColorfulReaction> _showReactions = [
+  _ColorfulReaction(
+    id: 'loved_show',
+    label: 'LOVED IT',
+    subtitle: 'Amazing student builds',
+    accent: Color(0xFFFF4D6D),
+    svg: '''
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="21" fill="#FFD43B"/>
+  <circle cx="24" cy="24" r="21" fill="none" stroke="#F59F00" stroke-width="2"/>
+  <path d="M16.5 19.5c-1.7-2.1-5-1.9-6.3.4-1.2 2.1-.4 4.8 6.3 8.6 6.7-3.8 7.5-6.5 6.3-8.6-1.3-2.3-4.6-2.5-6.3-.4z" fill="#FA5252"/>
+  <path d="M31.5 19.5c-1.7-2.1-5-1.9-6.3.4-1.2 2.1-.4 4.8 6.3 8.6 6.7-3.8 7.5-6.5 6.3-8.6-1.3-2.3-4.6-2.5-6.3-.4z" fill="#FA5252"/>
+  <path d="M15 31c2.2 4.2 15.8 4.2 18 0" fill="none" stroke="#5C3C00" stroke-width="2.8" stroke-linecap="round"/>
+</svg>
+''',
+  ),
+  _ColorfulReaction(
+    id: 'mind_blown',
+    label: 'MIND BLOWN',
+    subtitle: 'Creative tech & demos',
+    accent: Color(0xFFFFB703),
+    svg: '''
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="21" fill="#FFD43B"/>
+  <circle cx="24" cy="24" r="21" fill="none" stroke="#F59F00" stroke-width="2"/>
+  <path d="M13 15.5c1.8-1.5 4.2-1.5 6 0M29 15.5c1.8-1.5 4.2-1.5 6 0" fill="none" stroke="#5C3C00" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="16.5" cy="21" r="2.6" fill="#2B1D00"/>
+  <circle cx="31.5" cy="21" r="2.6" fill="#2B1D00"/>
+  <ellipse cx="24" cy="33" rx="4.8" ry="6.2" fill="#4A2511"/>
+  <path d="M20.5 35.5c1.8-1.6 5.2-1.6 7 0" fill="none" stroke="#FF6B6B" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
+''',
+  ),
+  _ColorfulReaction(
+    id: 'super_fun',
+    label: 'GREAT VIBE',
+    subtitle: 'Enjoyed visiting booths',
+    accent: Color(0xFF38BDF8),
+    svg: '''
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="21" fill="#FFD43B"/>
+  <circle cx="24" cy="24" r="21" fill="none" stroke="#F59F00" stroke-width="2"/>
+  <path d="M13 21c1.5-2.6 4.5-2.6 6 0M29 21c1.5-2.6 4.5-2.6 6 0" fill="none" stroke="#2B1D00" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M14 27.5h20c0 6.5-4.5 11-10 11s-10-4.5-10-11z" fill="#4A2511"/>
+  <path d="M17.5 34.5c2.2-2.2 10.8-2.2 13 0-1.8 2.5-4.2 3.8-6.5 3.8s-4.7-1.3-6.5-3.8z" fill="#FF6B6B"/>
+</svg>
+''',
+  ),
+  _ColorfulReaction(
+    id: 'inspired',
+    label: 'INSPIRED',
+    subtitle: 'Learned something new',
+    accent: Color(0xFFA3E635),
+    svg: '''
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="21" fill="#FFD43B"/>
+  <circle cx="24" cy="24" r="21" fill="none" stroke="#F59F00" stroke-width="2"/>
+  <path d="M16.5 16l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.6 1.4.5-3-2.2-2.1 3-.4z" fill="#FF922B"/>
+  <path d="M31.5 16l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.6 1.4.5-3-2.2-2.1 3-.4z" fill="#FF922B"/>
+  <path d="M15.5 30c2.5 4.2 14.5 4.2 17 0" fill="none" stroke="#5C3C00" stroke-width="2.8" stroke-linecap="round"/>
+</svg>
+''',
+  ),
+  _ColorfulReaction(
+    id: 'curious',
+    label: 'INTERESTING',
+    subtitle: 'Want to see more details',
+    accent: Color(0xFFC084FC),
+    svg: '''
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="21" fill="#FFD43B"/>
+  <circle cx="24" cy="24" r="21" fill="none" stroke="#F59F00" stroke-width="2"/>
+  <circle cx="16.5" cy="20.5" r="2.4" fill="#2B1D00"/>
+  <circle cx="31.5" cy="19.5" r="2.4" fill="#2B1D00"/>
+  <path d="M28 14.5c2-1.2 4.5-1.2 6.5.3" fill="none" stroke="#5C3C00" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M17 31.5c2.5-1.2 10.5-1.2 13.5.4" fill="none" stroke="#5C3C00" stroke-width="2.6" stroke-linecap="round"/>
+</svg>
+''',
+  ),
+  _ColorfulReaction(
+    id: 'crowded_or_rough',
+    label: 'COULD IMPROVE',
+    subtitle: 'Demo or booth hiccups',
+    accent: Color(0xFFFB7185),
+    svg: '''
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="21" fill="#FFD43B"/>
+  <circle cx="24" cy="24" r="21" fill="none" stroke="#F59F00" stroke-width="2"/>
+  <circle cx="16.5" cy="21" r="2.4" fill="#2B1D00"/>
+  <circle cx="31.5" cy="21" r="2.4" fill="#2B1D00"/>
+  <path d="M13 17l5.5 1.8M35 17l-5.5 1.8" fill="none" stroke="#5C3C00" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M16.5 33.5c2.2-2.6 12.8-2.6 15 0" fill="none" stroke="#5C3C00" stroke-width="2.6" stroke-linecap="round"/>
+</svg>
+''',
+  ),
+];
 
 class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
@@ -39,309 +134,352 @@ class FeedbackScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
-  final TextEditingController _noteController = TextEditingController();
-  bool _saving = false;
+  late final FeedbackController _controller;
+  late final KioskIdleController _idle;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = FeedbackController(ref);
+    _idle = KioskIdleController(ref: ref, timeout: const Duration(seconds: 30));
+    _controller.noteController.addListener(_idle.ping);
+    _controller.addListener(_onControllerChanged);
+    _idle.attach(context: context, isMounted: () => mounted);
+  }
+
+  void _onControllerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void dispose() {
-    _noteController.dispose();
+    _controller.removeListener(_onControllerChanged);
+    _controller.noteController.removeListener(_idle.ping);
+    _idle.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _onEmotionTap(VisitorEmotion emotion) async {
-    if (_saving) {
-      return;
-    }
-
-    final cooldown = ref.read(cooldownServiceProvider);
-    final remaining = cooldown.remaining(CooldownService.feedbackScope);
-    if (remaining > Duration.zero) {
-      await showMaximalistPopDialog<void>(
-        context: context,
-        borderColor: AppColors.solarGold,
-        shadowColor: AppColors.hyperCoral,
-        builder: (dialogContext) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.timer_outlined,
-              size: 46,
-              color: AppColors.solarGold,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'ANTI-SPAM COOLDOWN',
-              textAlign: TextAlign.center,
-              style: Theme.of(dialogContext).textTheme.titleLarge
-                  ?.copyWith(color: AppColors.solarGold),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Please wait ${remaining.inSeconds + 1}s before sending another reaction.',
-              textAlign: TextAlign.center,
-              style: Theme.of(dialogContext).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('GOT IT'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    setState(() => _saving = true);
-
-    try {
-      final db = ref.read(appDatabaseProvider);
-      final deviceId = await ref
-          .read(deviceIdServiceProvider)
-          .getOrCreateDeviceId();
-
-      await db.insertFeedback(
-        eventId: 'fb-${const Uuid().v4()}',
-        deviceId: deviceId,
-        sentiment: emotion.code,
-        note: _noteController.text.trim(),
-      );
-
-      cooldown.recordSubmission(CooldownService.feedbackScope);
-      _noteController.clear();
-
-      final report = await ref.read(sheetsSyncServiceProvider).syncPending();
-      if (!mounted) {
-        return;
-      }
-
-      await showMaximalistPopDialog<void>(
-        context: context,
-        borderColor: emotion.accent,
-        shadowColor: AppColors.electricCyan,
-        builder: (dialogContext) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emotion.emoji, style: const TextStyle(fontSize: 54))
-                .animate(onPlay: (c) => c.repeat(reverse: true))
-                .scaleXY(begin: 0.94, end: 1.12, duration: 700.ms),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'THANK YOU!',
-              style: Theme.of(dialogContext).textTheme.headlineMedium
-                  ?.copyWith(color: emotion.accent),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              report.totalSynced > 0
-                  ? 'Reaction "${emotion.label}" synced to Google Sheets!'
-                  : 'Reaction "${emotion.label}" saved locally!',
-              textAlign: TextAlign.center,
-              style: Theme.of(dialogContext).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('STAY HERE'),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                    context.go('/');
-                  },
-                  child: const Text('EXPLORE PROJECTS'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _saving = false);
-      }
-    }
+  Future<void> _onSubmitPressed() async {
+    _idle.ping();
+    await _controller.submit(
+      isMounted: () => mounted,
+      onSaved: () async {
+        _idle.pause();
+        try {
+          await _showPostFeedbackDialog();
+        } finally {
+          if (mounted) {
+            _idle.resume();
+          }
+        }
+      },
+    );
   }
+
+  Future<void> _showPostFeedbackDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF101726).withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.electricCyan.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'FEEDBACK RECORDED',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: AppColors.acidLime,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Want to rate student projects now?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'You can rate individual booths now or skip and head straight back to the landing screen.',
+                      style: TextStyle(fontSize: 13, color: Colors.white70),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
+                              (() { ref.read(sessionRatedProjectsProvider.notifier).resetSession(); context.go('/'); })();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.25),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'SKIP & HOME',
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
+                              context.go('/rating');
+                            },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.electricCyan,
+                              foregroundColor: AppColors.voidBlack,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'RATE PROJECTS',
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      body: MaximalistBackdrop(
-        child: Column(
+      backgroundColor: const Color(0xFF070A12),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: () => context.go('/'),
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    label: const Text('PROJECTS'),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => (() { ref.read(sessionRatedProjectsProvider.notifier).resetSession(); context.go('/'); })(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
                   ),
-                  const Spacer(),
-                  Text('PICK YOUR VIBE', style: textTheme.labelLarge),
-                ],
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'VISITOR CHECK-IN // PROJECT SHOW',
+                  style: textTheme.labelLarge?.copyWith(
+                    fontFamily: 'monospace',
+                    color: AppColors.electricCyan,
+                    letterSpacing: 1.3,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'How is your visit to the Project Show?',
+              style: textTheme.headlineMedium?.copyWith(
+                color: Colors.white,
+                fontSize: 23,
               ),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  children: [
-                    Text(
-                      'HOW DOES THE SHOWCASE FEEL?',
-                      textAlign: TextAlign.center,
-                      style: textTheme.headlineMedium?.copyWith(fontSize: 24),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Tap an emotion card to drop instant feedback',
-                      textAlign: TextAlign.center,
-                      style: textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final cols = constraints.maxWidth >= 600 ? 3 : 2;
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: VisitorEmotion.values.length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: cols,
-                                mainAxisSpacing: AppSpacing.md,
-                                crossAxisSpacing: AppSpacing.md,
-                                childAspectRatio: 1.18,
+            const SizedBox(height: 6),
+            Text(
+              'React to the student exhibition & booths, then optionally rate individual projects.',
+              style: textTheme.bodyMedium?.copyWith(color: Colors.white70),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _showReactions.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: AppSpacing.sm,
+                crossAxisSpacing: AppSpacing.sm,
+                childAspectRatio: 1.28,
+              ),
+              itemBuilder: (context, index) {
+                final item = _showReactions[index];
+                final selected = _controller.selectedReaction == item.id;
+                return GestureDetector(
+                  onTap: () {
+                    _idle.ping();
+                    _controller.selectReaction(item.id);
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? item.accent.withValues(alpha: 0.16)
+                              : const Color(0xFF101726).withValues(alpha: 0.78),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: selected
+                                ? item.accent
+                                : Colors.white.withValues(alpha: 0.14),
+                            width: selected ? 1.8 : 1.0,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SvgPicture.string(item.svg, width: 42, height: 42)
+                                .animate(target: selected ? 1 : 0)
+                                .scaleXY(
+                                  begin: 1.0,
+                                  end: 1.18,
+                                  duration: 200.ms,
+                                  curve: Curves.easeOutBack,
+                                ),
+                            const SizedBox(height: 8),
+                            Text(
+                              item.label,
+                              style: textTheme.labelLarge?.copyWith(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                color: selected ? item.accent : Colors.white,
                               ),
-                          itemBuilder: (context, index) {
-                            final emotion = VisitorEmotion.values[index];
-                            return _EmotionCard(
-                              emotion: emotion,
-                              index: index,
-                              disabled: _saving,
-                              onTap: () => unawaited(_onEmotionTap(emotion)),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 540),
-                      child: TextField(
-                        controller: _noteController,
-                        enabled: !_saving,
-                        maxLength: 140,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: AppColors.surfaceDark,
-                          hintText: 'Optional shout-out or suggestion...',
-                          hintStyle: AppTypography.textTheme.bodyMedium,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppSpacing.radiusSm,
                             ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppSpacing.radiusSm,
+                            const SizedBox(height: 2),
+                            Text(
+                              item.subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.white60,
+                              ),
                             ),
-                            borderSide: const BorderSide(
-                              color: AppColors.electricCyan,
-                              width: AppSpacing.borderThin,
-                            ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: TextField(
+                  controller: _controller.noteController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Share a quick note about the show or booths...',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: const Color(0xFF101726).withValues(alpha: 0.78),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.14),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: AppColors.electricCyan,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-            const LiveTickerBar(),
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.electricCyan,
+                foregroundColor: AppColors.voidBlack,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: (!_controller.submitting && _controller.selectedReaction != null)
+                  ? () => unawaited(_onSubmitPressed())
+                  : null,
+              child: Text(
+                _controller.submitting ? 'SAVING...' : 'SUBMIT FEEDBACK',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            if (_controller.statusMessage != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                _controller.statusMessage!,
+                textAlign: TextAlign.center,
+                style: textTheme.labelLarge?.copyWith(
+                  fontFamily: 'monospace',
+                  color: _controller.statusColor,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
-  }
-}
-
-class _EmotionCard extends StatelessWidget {
-  const _EmotionCard({
-    required this.emotion,
-    required this.index,
-    required this.disabled,
-    required this.onTap,
-  });
-
-  final VisitorEmotion emotion;
-  final int index;
-  final bool disabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-          onTap: disabled ? null : onTap,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: emotion.accent,
-                width: AppSpacing.borderThick,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: emotion.accent.withValues(alpha: 0.35),
-                  offset: const Offset(4, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(emotion.emoji, style: const TextStyle(fontSize: 38))
-                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .moveY(
-                      begin: -3,
-                      end: 3,
-                      delay: (index * 160).ms,
-                      duration: const Duration(milliseconds: 1500),
-                    ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  emotion.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge
-                      ?.copyWith(color: emotion.accent),
-                ),
-              ],
-            ),
-          ),
-        )
-        .animate()
-        .fadeIn(delay: (index * 60).ms, duration: 260.ms)
-        .scaleXY(
-          begin: 0.9,
-          end: 1.0,
-          delay: (index * 60).ms,
-          duration: 280.ms,
-          curve: Curves.easeOutBack,
-        );
   }
 }

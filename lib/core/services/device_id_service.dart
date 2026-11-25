@@ -1,22 +1,21 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-/// Persists a stable kiosk/device identifier across restarts.
 class DeviceIdService {
-  DeviceIdService(this._prefs, {Uuid uuid = const Uuid()}) : _uuid = uuid;
+  DeviceIdService(this._prefs, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
-  static const String _storageKey = 'ucstgo_showcase_device_id';
+  static const String _storageKey = 'showcase_device_id_v1';
 
   final SharedPreferences _prefs;
   final Uuid _uuid;
 
   Future<String> getOrCreateDeviceId() async {
     final existing = _prefs.getString(_storageKey);
-    if (existing != null && existing.trim().isNotEmpty) {
+    if (existing != null && existing.isNotEmpty) {
       return existing;
     }
-    final generated = 'device-${_uuid.v4()}';
-    await _prefs.setString(_storageKey, generated);
-    return generated;
+    final created = 'dev-${_uuid.v4()}';
+    await _prefs.setString(_storageKey, created);
+    return created;
   }
 }

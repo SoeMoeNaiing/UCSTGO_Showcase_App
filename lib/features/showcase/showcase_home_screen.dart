@@ -1,33 +1,120 @@
-import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/providers/showcase_providers.dart';
-import '../../core/services/cooldown_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/widgets/hanging_feedback_button.dart';
-import '../../core/widgets/live_ticker_bar.dart';
-import '../../core/widgets/maximalist_backdrop.dart';
-import '../../core/widgets/pop_modal.dart';
-import '../../core/widgets/university_hero_banner.dart';
 
-class _RankedProject {
-  const _RankedProject({
-    required this.project,
-    required this.avgScore,
-    required this.voteCount,
+const _svgStar = '''
+<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 2.5l2.95 6.08 6.7.97-4.85 4.72 1.15 6.68L12 17.77l-5.95 3.18 1.14-6.68L2.35 9.55l6.7-.97L12 2.5z"/>
+</svg>
+''';
+
+const _svgTrophy = '''
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg">
+  <path d="M6 4h12v5a6 6 0 0 1-12 0V4z"/>
+  <path d="M6 6H3a2 2 0 0 0 0 4h3M18 6h3a2 2 0 0 1 0 4h-3"/>
+  <path d="M12 15v4M8 21h8"/>
+</svg>
+''';
+
+const _svgArrowRight = '''
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M5 12h14"/>
+  <path d="m13 6 6 6-6 6"/>
+</svg>
+''';
+
+const _svgSparkPulse = '''
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  <path d="M8 9h8M8 13h5"/>
+</svg>
+''';
+
+const _svgVideoPlay = '''
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2" y="4" width="20" height="16" rx="3"/>
+  <polygon points="10,8.5 16,12 10,15.5" fill="currentColor"/>
+</svg>
+''';
+
+const _svgBookmarkLater = '''
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+  <path d="M12 7v6M9 10h6"/>
+</svg>
+''';
+
+const _svgGraphDoodle = '''
+<svg viewBox="0 0 180 120" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="30" r="10"/>
+  <circle cx="142" cy="28" r="10"/>
+  <circle cx="88" cy="88" r="12"/>
+  <path d="M41 34l37 45M133 35L98 78M42 30h90" stroke-dasharray="4 4"/>
+  <path d="M18 104c18-10 34 10 52 0" stroke-linecap="round"/>
+</svg>
+''';
+
+const _svgBracesDoodle = '''
+<svg viewBox="0 0 140 120" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M44 18c-12 0-16 6-16 18v12c0 8-6 12-12 12 6 0 12 4 12 12v14c0 12 4 18 16 18"/>
+  <path d="M96 18c12 0 16 6 16 18v12c0 8 6 12 12 12-6 0-12 4-12 12v14c0 12-4 18-16 18"/>
+  <circle cx="62" cy="60" r="2.5" fill="currentColor"/>
+  <circle cx="78" cy="60" r="2.5" fill="currentColor"/>
+</svg>
+''';
+
+const _svgBinaryTreeDoodle = '''
+<svg viewBox="0 0 160 110" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="80" cy="20" r="9"/>
+  <circle cx="44" cy="58" r="9"/>
+  <circle cx="116" cy="58" r="9"/>
+  <circle cx="26" cy="94" r="7"/>
+  <circle cx="62" cy="94" r="7"/>
+  <path d="M73 27L50 51M87 27l23 24M39 66l-10 21M49 66l10 21"/>
+</svg>
+''';
+
+class _ShowcaseVideoItem {
+  const _ShowcaseVideoItem({
+    required this.id,
+    required this.title,
+    required this.tag,
+    required this.duration,
+    required this.accent,
   });
 
-  final ShowcaseProject project;
-  final double avgScore;
-  final int voteCount;
+  final String id;
+  final String title;
+  final String tag;
+  final String duration;
+  final Color accent;
 }
+
+const List<_ShowcaseVideoItem> _showcaseVideos = [
+  _ShowcaseVideoItem(
+    id: 'vid_reel_01',
+    title: 'Exhibition Highlights Reel',
+    tag: 'REEL',
+    duration: '01:24',
+    accent: AppColors.electricCyan,
+  ),
+  _ShowcaseVideoItem(
+    id: 'vid_booth_02',
+    title: 'Live Booth Demos & Walkthrough',
+    tag: 'DEMO',
+    duration: '02:40',
+    accent: AppColors.acidLime,
+  ),
+];
 
 class ShowcaseHomeScreen extends ConsumerStatefulWidget {
   const ShowcaseHomeScreen({super.key});
@@ -37,484 +124,745 @@ class ShowcaseHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
-  String _selectedTrack = 'ALL';
-  int _refreshTick = 0;
+  bool _pressingCta = false;
+  final Set<String> _watchLaterIds = <String>{};
 
-  Future<void> _openProjectDetail(ShowcaseProject project) async {
-    await showMaximalistPopDialog<void>(
-      context: context,
-      borderColor: project.accent,
-      shadowColor: AppColors.electricCyan,
-      builder: (dialogContext) => _ProjectDetailDialog(project: project),
-    );
-    if (mounted) {
-      setState(() => _refreshTick++);
-    }
+  static const List<String> _csSnippets = [
+    'cpu_sched::hrrn(ready_queue, quantum_ms: 16);',
+    'SELECT project_id, AVG(score) FROM project_ratings GROUP BY project_id;',
+    'page_table.replace_lru(fault_addr: 0x004F_A200);',
+    'sync_queue.flush_pending(webhook_url).await?;',
+    'if (!cooldown.is_active(scope)) { commit_rating(); }',
+    'graph.topo_sort(|node| emit_dag_step(node));',
+    'banker_state.is_safe(available, max_claim, allocation);',
+  ];
+
+  void _toggleWatchLater(String id) {
+    setState(() {
+      if (_watchLaterIds.contains(id)) {
+        _watchLaterIds.remove(id);
+      } else {
+        _watchLaterIds.add(id);
+      }
+    });
   }
 
-  Future<List<_RankedProject>> _buildLeaderboard(
-    AppDatabase db,
-    List<ShowcaseProject> projects,
-  ) async {
+  Future<List<({ShowcaseProject project, double avg, int count})>>
+  _loadTopStandings(AppDatabase db, List<ShowcaseProject> projects) async {
     final ratings = await db.getUnsyncedRatings();
-    final byProject = <String, List<int>>{};
-    for (final r in ratings) {
-      (byProject[r.projectId] ??= []).add(r.score);
+    final grouped = <String, List<int>>{};
+    for (final r in rowsOrEmpty(ratings)) {
+      (grouped[r.projectId] ??= []).add(r.score);
     }
 
     final ranked = [
       for (final p in projects)
         () {
-          final scores = byProject[p.id] ?? const <int>[];
+          final scores = grouped[p.id] ?? const <int>[];
           final avg = scores.isEmpty
               ? 0.0
               : scores.fold<int>(0, (a, b) => a + b) / scores.length;
-          return _RankedProject(
-            project: p,
-            avgScore: avg,
-            voteCount: scores.length,
-          );
+          return (project: p, avg: avg, count: scores.length);
         }(),
     ];
 
     ranked.sort((a, b) {
-      final scoreCmp = b.avgScore.compareTo(a.avgScore);
-      if (scoreCmp != 0) {
-        return scoreCmp;
-      }
-      return b.voteCount.compareTo(a.voteCount);
+      final byAvg = b.avg.compareTo(a.avg);
+      return byAvg != 0 ? byAvg : b.count.compareTo(a.count);
     });
-    return ranked;
+    return ranked.take(3).toList();
   }
+
+  List<T> rowsOrEmpty<T>(List<T> list) => list;
 
   @override
   Widget build(BuildContext context) {
-    final allProjects = ref.watch(showcaseProjectsProvider);
+    final projects = ref.watch(showcaseProjectsProvider);
     final db = ref.watch(appDatabaseProvider);
-    final tracks = <String>[
-      'ALL',
-      ...{for (final p in allProjects) p.track},
-    ];
-    final filtered = _selectedTrack == 'ALL'
-        ? allProjects
-        : allProjects.where((p) => p.track == _selectedTrack).toList();
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      body: MaximalistBackdrop(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    key: ValueKey('arcade_board_$_refreshTick'),
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      96,
-                    ),
-                    children: [
-                      const UniversityHeroBanner(),
-                      const SizedBox(height: AppSpacing.lg),
-                      Row(
-                        children: [
-                          const Icon(
-                                Icons.emoji_events_rounded,
-                                color: AppColors.solarGold,
-                                size: 26,
-                              )
-                              .animate(onPlay: (c) => c.repeat(reverse: true))
-                              .scaleXY(
-                                begin: 0.92,
-                                end: 1.14,
-                                duration: 900.ms,
-                              ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
+      backgroundColor: const Color(0xFF070A12),
+      body: Stack(
+        children: [
+          // Flowing CS & algorithm code stream
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: 0.14,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < _csSnippets.length; i++)
+                      Padding(
+                            padding: EdgeInsets.only(left: (i % 3) * 16.0),
                             child: Text(
-                              'LIVE LEADERBOARD',
-                              style: textTheme.headlineMedium?.copyWith(
-                                fontSize: 22,
-                                color: AppColors.solarGold,
+                              _csSnippets[i],
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 12,
+                                color: AppColors.electricCyan,
                               ),
                             ),
+                          )
+                          .animate(onPlay: (c) => c.repeat())
+                          .moveX(
+                            begin: i.isEven ? -26 : 26,
+                            end: i.isEven ? 26 : -26,
+                            duration: Duration(milliseconds: 5000 + i * 600),
+                            curve: Curves.easeInOutSine,
                           ),
-                          Text(
-                            'TAP TO VOTE',
-                            style: textTheme.labelLarge?.copyWith(
-                              color: AppColors.acidLime,
-                              fontSize: 11,
-                            ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Animated SVG CS doodles
+          Positioned(
+            top: 56,
+            right: 10,
+            child: IgnorePointer(
+              child:
+                  SvgPicture.string(
+                        _svgGraphDoodle,
+                        width: 145,
+                        colorFilter: ColorFilter.mode(
+                          AppColors.electricCyan.withValues(alpha: 0.25),
+                          BlendMode.srcIn,
+                        ),
+                      )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .rotate(begin: -0.04, end: 0.04, duration: 2800.ms)
+                      .moveY(begin: -6, end: 6, duration: 2400.ms),
+            ),
+          ),
+          Positioned(
+            bottom: 84,
+            left: 10,
+            child: IgnorePointer(
+              child:
+                  SvgPicture.string(
+                        _svgBracesDoodle,
+                        width: 118,
+                        colorFilter: ColorFilter.mode(
+                          AppColors.solarGold.withValues(alpha: 0.22),
+                          BlendMode.srcIn,
+                        ),
+                      )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .moveY(begin: 7, end: -7, duration: 3100.ms),
+            ),
+          ),
+          Positioned(
+            bottom: 68,
+            right: 16,
+            child: IgnorePointer(
+              child:
+                  SvgPicture.string(
+                        _svgBinaryTreeDoodle,
+                        width: 128,
+                        colorFilter: ColorFilter.mode(
+                          AppColors.acidLime.withValues(alpha: 0.2),
+                          BlendMode.srcIn,
+                        ),
+                      )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .moveY(begin: -5, end: 5, duration: 2700.ms),
+            ),
+          ),
+
+          // Foreground layout
+          SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              children: [
+                Text(
+                  'CS // SHOWCASE',
+                  style: textTheme.labelLarge?.copyWith(
+                    fontFamily: 'monospace',
+                    color: AppColors.electricCyan,
+                    letterSpacing: 1.6,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'System Log & Standings',
+                  style: textTheme.headlineMedium?.copyWith(
+                    color: Colors.white,
+                    fontSize: 24,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Minimal Frosted Glass Leaderboard
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF101726).withValues(alpha: 0.78),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              SvgPicture.string(
+                                _svgTrophy,
+                                width: 16,
+                                height: 16,
+                                colorFilter: const ColorFilter.mode(
+                                  AppColors.solarGold,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'TOP RANKED',
+                                style: textTheme.labelLarge?.copyWith(
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          FutureBuilder<
+                            List<
+                              ({ShowcaseProject project, double avg, int count})
+                            >
+                          >(
+                            future: _loadTopStandings(db, projects),
+                            builder: (context, snap) {
+                              final rows = snap.data ?? const [];
+                              if (rows.isEmpty) {
+                                return const Text(
+                                  'No ratings recorded yet.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white54,
+                                  ),
+                                );
+                              }
+                              return Column(
+                                children: [
+                                  for (var i = 0; i < rows.length; i++)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 4,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            '#0${i + 1}',
+                                            style: const TextStyle(
+                                              fontFamily: 'monospace',
+                                              fontSize: 12,
+                                              color: AppColors.solarGold,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              rows[i].project.title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          SvgPicture.string(
+                                            _svgStar,
+                                            width: 13,
+                                            height: 13,
+                                            colorFilter: const ColorFilter.mode(
+                                              AppColors.solarGold,
+                                              BlendMode.srcIn,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            rows[i].count == 0
+                                                ? '0.0'
+                                                : rows[i].avg.toStringAsFixed(
+                                                    1,
+                                                  ),
+                                            style: const TextStyle(
+                                              fontFamily: 'monospace',
+                                              fontSize: 12,
+                                              color: Colors.white70,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      SizedBox(
-                        height: 40,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: tracks.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(width: AppSpacing.sm),
-                          itemBuilder: (context, index) {
-                            final track = tracks[index];
-                            final active = track == _selectedTrack;
-                            return ChoiceChip(
-                              selected: active,
-                              label: Text(track),
-                              onSelected: (_) =>
-                                  setState(() => _selectedTrack = track),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      FutureBuilder<List<_RankedProject>>(
-                        future: _buildLeaderboard(db, filtered),
-                        builder: (context, snapshot) {
-                          final ranked =
-                              snapshot.data ??
-                              [
-                                for (final p in filtered)
-                                  _RankedProject(
-                                    project: p,
-                                    avgScore: 0.0,
-                                    voteCount: 0,
-                                  ),
-                              ];
-
-                          return Column(
-                            children: [
-                              for (var i = 0; i < ranked.length; i++) ...[
-                                _ArcadeScoreRow(
-                                  rank: i + 1,
-                                  item: ranked[i],
-                                  onTap: () => unawaited(
-                                    _openProjectDetail(ranked[i].project),
-                                  ),
-                                ),
-                                if (i < ranked.length - 1)
-                                  const SizedBox(height: AppSpacing.md),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-                const LiveTickerBar(),
+
+                const SizedBox(height: AppSpacing.md),
+
+                // Videos & Watch Later section (ready for future video slots)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF101726).withValues(alpha: 0.78),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              SvgPicture.string(
+                                _svgVideoPlay,
+                                width: 16,
+                                height: 16,
+                                colorFilter: const ColorFilter.mode(
+                                  AppColors.electricCyan,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'VIDEOS // WATCH LATER QUEUE',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.electricCyan,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.electricCyan.withValues(
+                                    alpha: 0.14,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: AppColors.electricCyan.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  'LATER (${_watchLaterIds.length})',
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.electricCyan,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          for (var i = 0; i < _showcaseVideos.length; i++) ...[
+                            _VideoQueueRow(
+                              item: _showcaseVideos[i],
+                              savedForLater: _watchLaterIds.contains(
+                                _showcaseVideos[i].id,
+                              ),
+                              onToggleLater: () =>
+                                  _toggleWatchLater(_showcaseVideos[i].id),
+                            ),
+                            if (i < _showcaseVideos.length - 1)
+                              const SizedBox(height: 8),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.xl),
+
+                // Centered magnetic FEEDBACK CTA + glowing cyber code tags around bottom
+                Column(
+                  children: [
+                    Center(
+                      child: GestureDetector(
+                        onTapDown: (_) => setState(() => _pressingCta = true),
+                        onTapUp: (_) {
+                          setState(() => _pressingCta = false);
+                          context.go('/feedback');
+                        },
+                        onTapCancel: () => setState(() => _pressingCta = false),
+                        child:
+                            AnimatedScale(
+                                  scale: _pressingCta ? 0.95 : 1.0,
+                                  duration: const Duration(milliseconds: 120),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(24),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                        sigmaX: 16,
+                                        sigmaY: 16,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10192B)
+                                              .withValues(alpha: 0.86),
+                                          borderRadius: BorderRadius.circular(
+                                            24,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.electricCyan
+                                                .withValues(alpha: 0.65),
+                                            width: 1.5,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppColors.electricCyan
+                                                  .withValues(alpha: 0.24),
+                                              blurRadius: 28,
+                                              spreadRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 28,
+                                                    vertical: 18,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.electricCyan,
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  SvgPicture.string(
+                                                    _svgSparkPulse,
+                                                    width: 20,
+                                                    height: 20,
+                                                    colorFilter:
+                                                        const ColorFilter.mode(
+                                                          AppColors.voidBlack,
+                                                          BlendMode.srcIn,
+                                                        ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  const Text(
+                                                    'FEEDBACK',
+                                                    style: TextStyle(
+                                                      fontFamily: 'monospace',
+                                                      fontSize: 17,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color:
+                                                          AppColors.voidBlack,
+                                                      letterSpacing: 1.6,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  SvgPicture.string(
+                                                        _svgArrowRight,
+                                                        width: 20,
+                                                        height: 20,
+                                                        colorFilter:
+                                                            const ColorFilter.mode(
+                                                              AppColors
+                                                                  .voidBlack,
+                                                              BlendMode.srcIn,
+                                                            ),
+                                                      )
+                                                      .animate(
+                                                        onPlay: (c) => c.repeat(
+                                                          reverse: true,
+                                                        ),
+                                                      )
+                                                      .moveX(
+                                                        begin: -2,
+                                                        end: 4,
+                                                        duration: 750.ms,
+                                                      ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              'TAP TO DROP FEEDBACK & UNLOCK RATINGS',
+                                              style: textTheme.labelLarge
+                                                  ?.copyWith(
+                                                    fontFamily: 'monospace',
+                                                    fontSize: 10,
+                                                    color: Colors.white70,
+                                                    letterSpacing: 1.1,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .animate(onPlay: (c) => c.repeat(reverse: true))
+                                .scaleXY(
+                                  begin: 1.0,
+                                  end: 1.03,
+                                  duration: 1600.ms,
+                                  curve: Curves.easeInOutSine,
+                                ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    const _CyberCodeGlowFooter(),
+                  ],
+                ),
               ],
             ),
-            Positioned(
-              right: AppSpacing.md,
-              bottom: 52,
-              child: HangingFeedbackButton(
-                onPressed: () => context.go('/feedback'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ArcadeScoreRow extends StatelessWidget {
-  const _ArcadeScoreRow({
-    required this.rank,
+class _VideoQueueRow extends StatelessWidget {
+  const _VideoQueueRow({
     required this.item,
-    required this.onTap,
+    required this.savedForLater,
+    required this.onToggleLater,
   });
 
-  final int rank;
-  final _RankedProject item;
-  final VoidCallback onTap;
+  final _ShowcaseVideoItem item;
+  final bool savedForLater;
+  final VoidCallback onToggleLater;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final project = item.project;
-    final isFirst = rank == 1;
-    final fillRatio = (item.avgScore / 5.0).clamp(0.0, 1.0);
-    final rankColor = switch (rank) {
-      1 => AppColors.solarGold,
-      2 => AppColors.electricCyan,
-      3 => AppColors.acidLime,
-      _ => project.accent,
-    };
-
-    return InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: savedForLater
+              ? item.accent.withValues(alpha: 0.55)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: isFirst ? AppColors.solarGold : project.accent,
-                width: isFirst ? AppSpacing.borderThick : AppSpacing.borderThin,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: rankColor.withValues(alpha: isFirst ? 0.38 : 0.2),
-                  offset: Offset(isFirst ? 5 : 3, isFirst ? 5 : 3),
-                ),
-              ],
+              color: item.accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(6),
             ),
+            child: Text(
+              item.tag,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: item.accent,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xs,
-                      ),
-                      color: rankColor,
-                      child: Text(
-                        isFirst ? '#1 LEADER' : '#$rank',
-                        style: textTheme.labelLarge?.copyWith(
-                          color: AppColors.voidBlack,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        project.track,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.labelLarge?.copyWith(
-                          color: AppColors.inkSecondary,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      item.voteCount == 0
-                          ? 'NO VOTES YET'
-                          : '${item.avgScore.toStringAsFixed(1)} ★ (${item.voteCount})',
-                      style: textTheme.labelLarge?.copyWith(
-                        color: AppColors.solarGold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
                 Text(
-                  project.title,
-                  style: textTheme.titleLarge?.copyWith(fontSize: 19),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  project.summary,
-                  maxLines: 2,
+                  item.title,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Container(
-                    height: 8,
-                    color: AppColors.surfaceElevated,
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: fillRatio > 0 ? fillRatio : 0.06,
-                      child: Container(color: rankColor),
-                    ),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
+                Text(
+                  '${item.duration} • Ready for stream hookup',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    color: Colors.white54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onToggleLater,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: savedForLater
+                    ? item.accent.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: savedForLater
+                      ? item.accent
+                      : Colors.white.withValues(alpha: 0.14),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SvgPicture.string(
+                    _svgBookmarkLater,
+                    width: 12,
+                    height: 12,
+                    colorFilter: ColorFilter.mode(
+                      savedForLater ? item.accent : Colors.white70,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    savedForLater ? 'QUEUED' : 'LATER',
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: savedForLater ? item.accent : Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CyberCodeGlowFooter extends StatelessWidget {
+  const _CyberCodeGlowFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        const _GlowingCodeGlyph(token: '<>', color: AppColors.electricCyan),
+        const _GlowingCodeGlyph(token: '</>', color: AppColors.acidLime),
+        const _GlowingCodeGlyph(token: '{ feedback }', color: AppColors.solarGold),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10192B).withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppColors.electricCyan.withValues(alpha: 0.35),
+            ),
+          ),
+          child: const Text(
+            '0xSHOW_NODE // READY',
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: Colors.white70,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GlowingCodeGlyph extends StatelessWidget {
+  const _GlowingCodeGlyph({required this.token, required this.color});
+
+  final String token;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.55)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.32),
+                blurRadius: 12,
+                spreadRadius: 0.5,
+              ),
+            ],
+          ),
+          child: Text(
+            token,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: color,
+              shadows: [
+                Shadow(color: color.withValues(alpha: 0.75), blurRadius: 8),
               ],
             ),
           ),
         )
-        .animate()
-        .fadeIn(delay: ((rank - 1) * 70).ms, duration: 260.ms)
-        .slideX(begin: -0.04, end: 0, delay: ((rank - 1) * 70).ms);
-  }
-}
-
-class _ProjectDetailDialog extends ConsumerStatefulWidget {
-  const _ProjectDetailDialog({required this.project});
-
-  final ShowcaseProject project;
-
-  @override
-  ConsumerState<_ProjectDetailDialog> createState() =>
-      _ProjectDetailDialogState();
-}
-
-class _ProjectDetailDialogState extends ConsumerState<_ProjectDetailDialog> {
-  int _stars = 0;
-  bool _submitting = false;
-  String? _feedbackLine;
-  Color _feedbackColor = AppColors.acidLime;
-
-  Future<void> _rateProject() async {
-    if (_submitting || _stars < 1) {
-      return;
-    }
-
-    final scope = CooldownService.ratingProjectScope(widget.project.id);
-    final cooldown = ref.read(cooldownServiceProvider);
-    final remaining = cooldown.remaining(scope);
-    if (remaining > Duration.zero) {
-      setState(() {
-        _feedbackColor = AppColors.solarGold;
-        _feedbackLine =
-            'COOLDOWN FOR ${widget.project.title.toUpperCase()}: WAIT ${remaining.inSeconds + 1}S';
-      });
-      return;
-    }
-
-    setState(() {
-      _submitting = true;
-      _feedbackLine = null;
-    });
-
-    try {
-      final db = ref.read(appDatabaseProvider);
-      final deviceId = await ref
-          .read(deviceIdServiceProvider)
-          .getOrCreateDeviceId();
-
-      await db.insertRating(
-        eventId: 'rt-${const Uuid().v4()}',
-        deviceId: deviceId,
-        projectId: widget.project.id,
-        projectTitle: widget.project.title,
-        score: _stars,
-      );
-
-      cooldown.recordSubmission(scope);
-      final report = await ref.read(sheetsSyncServiceProvider).syncPending();
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _feedbackColor = AppColors.acidLime;
-        _feedbackLine = report.totalSynced > 0
-            ? 'RATED $_stars/5 & SYNCED TO GOOGLE SHEETS!'
-            : 'RATED $_stars/5 — SAVED TO LOCAL DB!';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final project = widget.project;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              color: project.accent,
-              child: Text(
-                project.track,
-                style: textTheme.labelLarge?.copyWith(
-                  color: AppColors.voidBlack,
-                  fontSize: 11,
-                ),
-              ),
-            ),
-            const Spacer(),
-            IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close_rounded),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          project.title,
-          style: textTheme.headlineMedium?.copyWith(fontSize: 22),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          project.team,
-          style: textTheme.labelLarge?.copyWith(color: AppColors.solarGold),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(project.summary, style: textTheme.bodyLarge),
-        const SizedBox(height: AppSpacing.md),
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
-            for (final tag in project.techStack) Chip(label: Text(tag)),
-          ],
-        ),
-        const Divider(height: AppSpacing.xl, color: AppColors.gridLine),
-        Text(
-          'VOTE FOR THIS PROJECT',
-          textAlign: TextAlign.center,
-          style: textTheme.labelLarge,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var s = 1; s <= 5; s++)
-              IconButton(
-                    iconSize: 36,
-                    onPressed: _submitting
-                        ? null
-                        : () => setState(() => _stars = s),
-                    icon: Icon(
-                      s <= _stars
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      color: s <= _stars
-                          ? AppColors.solarGold
-                          : AppColors.inkSecondary,
-                    ),
-                  )
-                  .animate(target: s <= _stars ? 1 : 0)
-                  .scaleXY(
-                    begin: 1.0,
-                    end: 1.2,
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOutBack,
-                  ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        FilledButton(
-          onPressed: (!_submitting && _stars > 0)
-              ? () => unawaited(_rateProject())
-              : null,
-          child: Text(_submitting ? 'SAVING...' : 'SUBMIT VOTE'),
-        ),
-        if (_feedbackLine != null) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            _feedbackLine!,
-            textAlign: TextAlign.center,
-            style: textTheme.labelLarge?.copyWith(color: _feedbackColor),
-          ),
-        ],
-      ],
-    );
+        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .fadeIn(duration: 900.ms)
+        .then()
+        .scaleXY(
+          begin: 1.0,
+          end: 1.05,
+          duration: 1400.ms,
+          curve: Curves.easeInOutSine,
+        );
   }
 }
