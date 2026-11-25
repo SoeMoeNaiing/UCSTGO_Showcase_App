@@ -134,6 +134,26 @@ class FeedbackScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
+  Timer? _idleHomeTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _noteController.addListener(_resetIdleHomeTimer);
+    _resetIdleHomeTimer();
+  }
+
+  void _resetIdleHomeTimer() {
+    _idleHomeTimer?.cancel();
+    _idleHomeTimer = Timer(const Duration(seconds: 30), () {
+      if (!mounted || _submitting) {
+        return;
+      }
+      Navigator.of(context, rootNavigator: true).maybePop();
+      ref.read(sessionRatedProjectsProvider.notifier).resetSession();
+      context.go('/');
+    });
+  }
   String? _selectedReaction;
   final TextEditingController _noteController = TextEditingController();
   bool _submitting = false;
@@ -203,7 +223,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                           child: OutlinedButton(
                             onPressed: () {
                               Navigator.of(dialogContext).pop();
-                              context.go('/');
+                              (() { ref.read(sessionRatedProjectsProvider.notifier).resetSession(); context.go('/'); })();
                             },
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
@@ -279,6 +299,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
       return;
     }
 
+    _resetIdleHomeTimer();
     setState(() {
       _submitting = true;
       _statusMessage = null;
@@ -298,7 +319,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
       );
 
       cooldown.recordSubmission(CooldownService.feedbackScope);
-      await ref.read(sheetsSyncServiceProvider).syncPending();
+      unawaited(ref.read(sheetsSyncServiceProvider).syncPending());
 
       if (!mounted) {
         return;
@@ -309,7 +330,11 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
         _statusMessage = 'FEEDBACK RECORDED.';
       });
 
+      _idleHomeTimer?.cancel();
       await _showPostFeedbackDialog();
+      if (mounted) {
+        _resetIdleHomeTimer();
+      }
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -330,7 +355,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
             Row(
               children: [
                 IconButton(
-                  onPressed: () => context.go('/'),
+                  onPressed: () => (() { ref.read(sessionRatedProjectsProvider.notifier).resetSession(); context.go('/'); })(),
                   icon: const Icon(
                     Icons.arrow_back_rounded,
                     color: Colors.white,
@@ -375,7 +400,10 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 final item = _showReactions[index];
                 final selected = _selectedReaction == item.id;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedReaction = item.id),
+                  onTap: () {
+                    _resetIdleHomeTimer();
+                    setState(() => _selectedReaction = item.id);
+                  },
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
                     child: BackdropFilter(

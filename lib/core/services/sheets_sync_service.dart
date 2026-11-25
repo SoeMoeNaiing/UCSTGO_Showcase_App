@@ -210,7 +210,7 @@ class SheetsSyncService {
         );
       }
 
-      await _db.upsertProjects(companions, pruneMissing: pruneMissing);
+      await _db.upsertProjects(companions, pruneMissing: pruneMissing && rawList.isNotEmpty);
       return CatalogSyncResult(ok: true, upsertedCount: companions.length);
     } catch (e) {
       return CatalogSyncResult(
@@ -230,10 +230,120 @@ class SheetsSyncService {
             headers: const {'Content-Type': 'application/json'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 8));
-      return response.statusCode >= 200 && response.statusCode < 300;
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return false;
+      }
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded['ok'] == true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
   }
+
+  /// Seeds realistic showcase demo projects into local Drift SQLite and,
+  /// when configured, posts each submission to the Apps Script webhook.
+  Future<({int seededCount, int postedCount})> seedDemoProjects({
+    bool postToWebhook = true,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final samples = [
+      {
+        'id': 'proj-demo-101',
+        'title': 'Smart Campus Transit Tracker',
+        'track': 'MOBILE & IOT',
+        'summary':
+            'Real-time shuttle and campus route tracker with offline-first caching and live stop arrival estimates.',
+        'team': 'Taungoo Systems Lab',
+        'booth': 'B-01',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+        'techStack': ['Flutter', 'Dart', 'SQLite', 'MQTT'],
+        'accentHex': '#00F5D4',
+        'sortOrder': 1,
+        'approved': true,
+      },
+      {
+        'id': 'proj-demo-102',
+        'title': 'AegisGrid Microgrid Monitor',
+        'track': 'EMBEDDED & AI',
+        'summary':
+            'Edge telemetry dashboard forecasting solar-battery load balance and fault alerts across campus blocks.',
+        'team': 'VoltCraft Collective',
+        'booth': 'B-02',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80',
+        'techStack': ['Python', 'TensorFlow Lite', 'ESP32', 'PostgreSQL'],
+        'accentHex': '#FFBE0B',
+        'sortOrder': 2,
+        'approved': true,
+      },
+      {
+        'id': 'proj-demo-103',
+        'title': 'CivicLedger Permit Portal',
+        'track': 'WEB & CLOUD',
+        'summary':
+            'Streamlined local registration and document verification workflow with audit trails and instant status tracking.',
+        'team': 'CloudForge Team',
+        'booth': 'B-03',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
+        'techStack': ['TypeScript', 'Node.js', 'Docker', 'MySQL'],
+        'accentHex': '#FF006E',
+        'sortOrder': 3,
+        'approved': true,
+      },
+    ];
+
+    final companions = <ShowcaseProjectsCompanion>[];
+    var postedCount = 0;
+
+    for (var i = 0; i < samples.length; i++) {
+      final item = samples[i];
+      final techList = (item['techStack'] as List<String>);
+      final rawImage = (item['imageUrl'] as String?)?.trim() ?? '';
+      final validImage = rawImage.startsWith('https://') ? rawImage : null;
+
+      companions.add(
+        ShowcaseProjectsCompanion.insert(
+          projectId: item['id']! as String,
+          title: item['title']! as String,
+          track: item['track']! as String,
+          summary: Value(item['summary']! as String),
+          team: Value(item['team']! as String),
+          booth: Value(item['booth']! as String),
+          imageUrl: Value(validImage),
+          techStackJson: Value(jsonEncode(techList)),
+          accentHex: Value(item['accentHex']! as String),
+          sortOrder: Value(item['sortOrder'] as int? ?? i),
+          approved: const Value(true),
+          updatedAt: now,
+        ),
+      );
+
+      if (postToWebhook && isConfigured) {
+        final ok = await _postPayload({
+          'type': 'project_submission',
+          'id': item['id'],
+          'title': item['title'],
+          'track': item['track'],
+          'summary': item['summary'],
+          'team': item['team'],
+          'booth': item['booth'],
+          'imageUrl': validImage ?? '',
+          'techStack': techList,
+          'accentHex': item['accentHex'],
+          'approved': false,
+        });
+        if (ok) postedCount++;
+      }
+    }
+
+    await _db.upsertProjects(companions, pruneMissing: false);
+    return (seededCount: companions.length, postedCount: postedCount);
+  }
+
 }

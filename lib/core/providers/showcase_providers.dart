@@ -141,13 +141,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
-          child: const ShowcaseHomeScreen(),
-          transitionsBuilder: (context, animation, secondary, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
+        pageBuilder: (context, state) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(sessionRatedProjectsProvider.notifier).resetSession();
+          });
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: const ShowcaseHomeScreen(),
+            transitionsBuilder: (context, animation, secondary, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/rating',
@@ -177,3 +182,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class SessionRatedProjectsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const <String>{};
+
+  void markRated(String projectId) {
+    final trimmed = projectId.trim();
+    if (trimmed.isEmpty || state.contains(trimmed)) return;
+    state = <String>{...state, trimmed};
+  }
+
+  void resetSession() {
+    if (state.isEmpty) return;
+    state = const <String>{};
+  }
+}
+
+final sessionRatedProjectsProvider =
+    NotifierProvider<SessionRatedProjectsNotifier, Set<String>>(
+      SessionRatedProjectsNotifier.new,
+    );

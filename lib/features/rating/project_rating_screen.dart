@@ -10,7 +10,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/providers/showcase_providers.dart';
-import '../../core/services/cooldown_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/pop_modal.dart';
@@ -51,6 +50,11 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
   void initState() {
     super.initState();
     _resetIdleHomeTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(ref.read(sheetsSyncServiceProvider).pullCatalog());
+      unawaited(ref.read(sheetsSyncServiceProvider).syncPending());
+    });
   }
 
   void _resetIdleHomeTimer() {
@@ -140,7 +144,10 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () => context.go('/'),
+                          onPressed: () {
+                            ref.read(sessionRatedProjectsProvider.notifier).resetSession();
+                            context.go('/');
+                          },
                           icon: const Icon(
                             Icons.arrow_back_rounded,
                             color: Colors.white,
@@ -236,6 +243,7 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
                       _GlassProjectCard(
                         project: filtered[i],
                         stat: scoresMap[filtered[i].id],
+                        isRated: ref.watch(sessionRatedProjectsProvider).contains(filtered[i].id),
                         onRate: () => unawaited(_openRatingModal(filtered[i])),
                       ),
                       if (i < filtered.length - 1)
@@ -508,11 +516,13 @@ class _GlassProjectCard extends StatelessWidget {
   const _GlassProjectCard({
     required this.project,
     required this.stat,
+    required this.isRated,
     required this.onRate,
   });
 
   final ShowcaseProject project;
   final _ProjectScoreStat? stat;
+  final bool isRated;
   final VoidCallback onRate;
 
   @override
@@ -582,7 +592,38 @@ class _GlassProjectCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              if (project.imageUrl != null && project.imageUrl!.trim().startsWith('https://')) ...[
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 148,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.14),
+                      ),
+                    ),
+                    child: Image.network(
+                      project.imageUrl!.trim(),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Center(
+                        child: Text(
+                          'IMAGE OFFLINE // ${project.booth.isNotEmpty ? project.booth : project.track}',
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 10,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
               Text(
                 project.title,
                 style: textTheme.titleLarge?.copyWith(
@@ -611,16 +652,25 @@ class _GlassProjectCard extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: project.accent,
-                    foregroundColor: AppColors.voidBlack,
+                    backgroundColor: isRated
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : project.accent,
+                    foregroundColor: isRated
+                        ? Colors.white.withValues(alpha: 0.42)
+                        : AppColors.voidBlack,
+                    disabledBackgroundColor: Colors.white.withValues(alpha: 0.06),
+                    disabledForegroundColor: Colors.white.withValues(alpha: 0.42),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
+                      side: isRated
+                          ? BorderSide(color: Colors.white.withValues(alpha: 0.16))
+                          : BorderSide.none,
                     ),
                   ),
-                  onPressed: onRate,
-                  child: const Text(
-                    'RATE PROJECT',
-                    style: TextStyle(
+                  onPressed: isRated ? null : onRate,
+                  child: Text(
+                    isRated ? 'RATED' : 'RATE PROJECT',
+                    style: const TextStyle(
                       fontFamily: 'monospace',
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.1,
@@ -656,13 +706,10 @@ class _GlassRatingDialogState extends ConsumerState<_GlassRatingDialog> {
       return;
     }
 
-    final scope = CooldownService.ratingProjectScope(widget.project.id);
-    final cooldown = ref.read(cooldownServiceProvider);
-    final remaining = cooldown.remaining(scope);
-    if (remaining > Duration.zero) {
+    if (ref.read(sessionRatedProjectsProvider).contains(widget.project.id)) {
       setState(() {
         _statusColor = AppColors.solarGold;
-        _statusLine = 'COOLDOWN ACTIVE: WAIT ${remaining.inSeconds + 1}S';
+        _statusLine = 'ALREADY RATED IN THIS SESSION';
       });
       return;
     }
@@ -686,7 +733,7 @@ class _GlassRatingDialogState extends ConsumerState<_GlassRatingDialog> {
         score: _stars,
       );
 
-      cooldown.recordSubmission(scope);
+      ref.read(sessionRatedProjectsProvider.notifier).markRated(widget.project.id);
       final report = await ref.read(sheetsSyncServiceProvider).syncPending();
 
       if (!mounted) {
@@ -699,6 +746,11 @@ class _GlassRatingDialogState extends ConsumerState<_GlassRatingDialog> {
             ? 'RATED $_stars/5 & SYNCED TO SHEETS'
             : 'RATED $_stars/5 — SAVED LOCALLY';
       });
+
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
