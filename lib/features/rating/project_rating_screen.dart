@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../core/database/app_database.dart';
+import '../../core/controllers/kiosk_idle_controller.dart';
+import 'rating_controller.dart';
 import '../../core/providers/showcase_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -26,13 +26,6 @@ const _svgStarOutline = '''
 </svg>
 ''';
 
-class _ProjectScoreStat {
-  const _ProjectScoreStat({required this.avg, required this.count});
-
-  final double avg;
-  final int count;
-}
-
 class ProjectRatingScreen extends ConsumerStatefulWidget {
   const ProjectRatingScreen({super.key});
 
@@ -42,67 +35,53 @@ class ProjectRatingScreen extends ConsumerStatefulWidget {
 }
 
 class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
-  String _selectedTrack = 'ALL';
+  late final RatingController _controller;
+  late final KioskIdleController _idle;
   int _refreshTick = 0;
-  Timer? _idleHomeTimer;
 
   @override
   void initState() {
     super.initState();
-    _resetIdleHomeTimer();
+    _controller = RatingController(ref);
+    _idle = KioskIdleController(ref: ref, timeout: const Duration(seconds: 30));
+    _controller.addListener(_onControllerChanged);
+    _idle.attach(context: context, isMounted: () => mounted);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(ref.read(sheetsSyncServiceProvider).pullCatalog());
-      unawaited(ref.read(sheetsSyncServiceProvider).syncPending());
+      _controller.triggerInitialSync();
     });
   }
 
-  void _resetIdleHomeTimer() {
-    _idleHomeTimer?.cancel();
-    _idleHomeTimer = Timer(const Duration(seconds: 30), () {
-      if (!mounted) {
-        return;
-      }
-      Navigator.of(context, rootNavigator: true).maybePop();
-      context.go('/');
-    });
+  void _onControllerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    _idleHomeTimer?.cancel();
+    _controller.removeListener(_onControllerChanged);
+    _idle.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   Future<void> _openRatingModal(ShowcaseProject project) async {
-    _resetIdleHomeTimer();
-    await showMaximalistPopDialog<void>(
-      context: context,
-      borderColor: project.accent,
-      shadowColor: AppColors.electricCyan,
-      builder: (dialogContext) => _GlassRatingDialog(project: project),
-    );
-    if (mounted) {
-      _resetIdleHomeTimer();
-      setState(() => _refreshTick++);
-    }
-  }
-
-  Future<dynamic> _loadProjectScores(AppDatabase db) async {
-    final ratings = await db.getUnsyncedRatings();
-    final grouped = <String, List<int>>{};
-    for (final r in ratings) {
-      (grouped[r.projectId] ??= []).add(r.score);
-    }
-    final result = <String, _ProjectScoreStat>{};
-    for (final entry in grouped.entries) {
-      final sum = entry.value.fold<int>(0, (a, b) => a + b);
-      result[entry.key] = _ProjectScoreStat(
-        avg: sum / entry.value.length,
-        count: entry.value.length,
+    _idle.ping();
+    _idle.pause();
+    try {
+      await showMaximalistPopDialog<void>(
+        context: context,
+        borderColor: project.accent,
+        shadowColor: AppColors.electricCyan,
+        builder: (dialogContext) => _GlassRatingDialog(project: project),
       );
+    } finally {
+      if (mounted) {
+        _idle.resume();
+        setState(() => _refreshTick++);
+      }
     }
-    return result;
   }
 
   @override
@@ -113,18 +92,18 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
       'ALL',
       ...{for (final p in allProjects) p.track},
     ];
-    final filtered = _selectedTrack == 'ALL'
+    final filtered = _controller.selectedTrack == 'ALL'
         ? allProjects
-        : allProjects.where((p) => p.track == _selectedTrack).toList();
+        : allProjects.where((p) => p.track == _controller.selectedTrack).toList();
     final textTheme = Theme.of(context).textTheme;
 
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (_) => _resetIdleHomeTimer(),
-      onPointerMove: (_) => _resetIdleHomeTimer(),
+      onPointerDown: (_) => _idle.ping(),
+      onPointerMove: (_) => _idle.ping(),
       child: NotificationListener<ScrollNotification>(
         onNotification: (_) {
-          _resetIdleHomeTimer();
+          _idle.ping();
           return false;
         },
         child: Scaffold(
@@ -132,11 +111,11 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
           body: SafeArea(
             child: FutureBuilder(
               key: ValueKey('glass_rating_$_refreshTick'),
-              future: _loadProjectScores(db),
+              future: _controller.loadProjectScores(db),
               builder: (context, snapshot) {
                 final scoresMap =
-                    (snapshot.data as Map<String, _ProjectScoreStat>?) ??
-                    const <String, _ProjectScoreStat>{};
+                    snapshot.data ??
+                    const <String, ProjectScoreStat>{};
 
                 return ListView(
                   padding: const EdgeInsets.all(AppSpacing.lg),
@@ -145,8 +124,7 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
                       children: [
                         IconButton(
                           onPressed: () {
-                            ref.read(sessionRatedProjectsProvider.notifier).resetSession();
-                            context.go('/');
+                            _idle.goHomeNow(context);
                           },
                           icon: const Icon(
                             Icons.arrow_back_rounded,
@@ -196,11 +174,11 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
                             const SizedBox(width: AppSpacing.sm),
                         itemBuilder: (context, index) {
                           final track = tracks[index];
-                          final selected = track == _selectedTrack;
+                          final selected = track == _controller.selectedTrack;
                           return GestureDetector(
                             onTap: () {
-                              _resetIdleHomeTimer();
-                              setState(() => _selectedTrack = track);
+                              _idle.ping();
+                              setState(() => _controller.selectTrack(track));
                             },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
@@ -267,7 +245,7 @@ class _ExpandableRatingLeaderboard extends StatefulWidget {
   });
 
   final List<ShowcaseProject> projects;
-  final Map<String, _ProjectScoreStat> scoresById;
+  final Map<String, ProjectScoreStat> scoresById;
 
   @override
   State<_ExpandableRatingLeaderboard> createState() =>
@@ -407,7 +385,7 @@ class _LeaderboardRankRow extends StatelessWidget {
 
   final int rank;
   final ShowcaseProject project;
-  final _ProjectScoreStat? stat;
+  final ProjectScoreStat? stat;
 
   @override
   Widget build(BuildContext context) {
@@ -521,7 +499,7 @@ class _GlassProjectCard extends StatelessWidget {
   });
 
   final ShowcaseProject project;
-  final _ProjectScoreStat? stat;
+  final ProjectScoreStat? stat;
   final bool isRated;
   final VoidCallback onRate;
 
@@ -701,6 +679,21 @@ class _GlassRatingDialogState extends ConsumerState<_GlassRatingDialog> {
   String? _statusLine;
   Color _statusColor = AppColors.acidLime;
 
+  Future<void> _closeWithTransition({
+    required VoidCallback onBeforeClose,
+    Duration hold = const Duration(milliseconds: 220),
+  } ) async {
+    if (!mounted) {
+      return;
+    }
+    onBeforeClose();
+    await Future<void>.delayed(hold);
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
   Future<void> _submitRating() async {
     if (_submitting || _stars < 1) {
       return;
@@ -734,23 +727,16 @@ class _GlassRatingDialogState extends ConsumerState<_GlassRatingDialog> {
       );
 
       ref.read(sessionRatedProjectsProvider.notifier).markRated(widget.project.id);
-      final report = await ref.read(sheetsSyncServiceProvider).syncPending();
+      unawaited(ref.read(sheetsSyncServiceProvider).syncPending());
 
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _statusColor = AppColors.acidLime;
-        _statusLine = report.totalSynced > 0
-            ? 'RATED $_stars/5 & SYNCED TO SHEETS'
-            : 'RATED $_stars/5 — SAVED LOCALLY';
-      });
-
-      await Future<void>.delayed(const Duration(milliseconds: 650));
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      await _closeWithTransition(
+        onBeforeClose: () {
+          setState(() {
+            _statusColor = AppColors.acidLime;
+            _statusLine = 'RATED $_stars/5';
+          });
+        },
+      );
     } finally {
       if (mounted) {
         setState(() => _submitting = false);

@@ -6,10 +6,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/providers/showcase_providers.dart';
-import '../../core/services/cooldown_service.dart';
+import 'feedback_controller.dart';
+import '../../core/controllers/kiosk_idle_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -134,37 +134,49 @@ class FeedbackScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
-  Timer? _idleHomeTimer;
+  late final FeedbackController _controller;
+  late final KioskIdleController _idle;
 
   @override
   void initState() {
     super.initState();
-    _noteController.addListener(_resetIdleHomeTimer);
-    _resetIdleHomeTimer();
+    _controller = FeedbackController(ref);
+    _idle = KioskIdleController(ref: ref, timeout: const Duration(seconds: 30));
+    _controller.noteController.addListener(_idle.ping);
+    _controller.addListener(_onControllerChanged);
+    _idle.attach(context: context, isMounted: () => mounted);
   }
 
-  void _resetIdleHomeTimer() {
-    _idleHomeTimer?.cancel();
-    _idleHomeTimer = Timer(const Duration(seconds: 30), () {
-      if (!mounted || _submitting) {
-        return;
-      }
-      Navigator.of(context, rootNavigator: true).maybePop();
-      ref.read(sessionRatedProjectsProvider.notifier).resetSession();
-      context.go('/');
-    });
+  void _onControllerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
-  String? _selectedReaction;
-  final TextEditingController _noteController = TextEditingController();
-  bool _submitting = false;
-
-  String? _statusMessage;
-  Color _statusColor = AppColors.acidLime;
 
   @override
   void dispose() {
-    _noteController.dispose();
+    _controller.removeListener(_onControllerChanged);
+    _controller.noteController.removeListener(_idle.ping);
+    _idle.dispose();
+    _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _onSubmitPressed() async {
+    _idle.ping();
+    await _controller.submit(
+      isMounted: () => mounted,
+      onSaved: () async {
+        _idle.pause();
+        try {
+          await _showPostFeedbackDialog();
+        } finally {
+          if (mounted) {
+            _idle.resume();
+          }
+        }
+      },
+    );
   }
 
   Future<void> _showPostFeedbackDialog() async {
@@ -282,65 +294,6 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
     );
   }
 
-  Future<void> _submitFeedback() async {
-    final reaction = _selectedReaction;
-    if (_submitting || reaction == null) {
-      return;
-    }
-
-    final cooldown = ref.read(cooldownServiceProvider);
-    final remaining = cooldown.remaining(CooldownService.feedbackScope);
-    if (remaining > Duration.zero) {
-      setState(() {
-        _statusColor = AppColors.solarGold;
-        _statusMessage =
-            'WAIT ${remaining.inSeconds + 1}S BEFORE SENDING AGAIN';
-      });
-      return;
-    }
-
-    _resetIdleHomeTimer();
-    setState(() {
-      _submitting = true;
-      _statusMessage = null;
-    });
-
-    try {
-      final db = ref.read(appDatabaseProvider);
-      final deviceId = await ref
-          .read(deviceIdServiceProvider)
-          .getOrCreateDeviceId();
-
-      await db.insertFeedback(
-        eventId: 'fb-${const Uuid().v4()}',
-        deviceId: deviceId,
-        sentiment: reaction,
-        note: _noteController.text.trim(),
-      );
-
-      cooldown.recordSubmission(CooldownService.feedbackScope);
-      unawaited(ref.read(sheetsSyncServiceProvider).syncPending());
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _statusColor = AppColors.acidLime;
-        _statusMessage = 'FEEDBACK RECORDED.';
-      });
-
-      _idleHomeTimer?.cancel();
-      await _showPostFeedbackDialog();
-      if (mounted) {
-        _resetIdleHomeTimer();
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -398,11 +351,11 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
               ),
               itemBuilder: (context, index) {
                 final item = _showReactions[index];
-                final selected = _selectedReaction == item.id;
+                final selected = _controller.selectedReaction == item.id;
                 return GestureDetector(
                   onTap: () {
-                    _resetIdleHomeTimer();
-                    setState(() => _selectedReaction = item.id);
+                    _idle.ping();
+                    _controller.selectReaction(item.id);
                   },
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
@@ -467,7 +420,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                 child: TextField(
-                  controller: _noteController,
+                  controller: _controller.noteController,
                   maxLines: 3,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
@@ -501,11 +454,11 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              onPressed: (!_submitting && _selectedReaction != null)
-                  ? () => unawaited(_submitFeedback())
+              onPressed: (!_controller.submitting && _controller.selectedReaction != null)
+                  ? () => unawaited(_onSubmitPressed())
                   : null,
               child: Text(
-                _submitting ? 'SAVING...' : 'SUBMIT FEEDBACK',
+                _controller.submitting ? 'SAVING...' : 'SUBMIT FEEDBACK',
                 style: const TextStyle(
                   fontFamily: 'monospace',
                   fontWeight: FontWeight.w800,
@@ -513,14 +466,14 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 ),
               ),
             ),
-            if (_statusMessage != null) ...[
+            if (_controller.statusMessage != null) ...[
               const SizedBox(height: AppSpacing.md),
               Text(
-                _statusMessage!,
+                _controller.statusMessage!,
                 textAlign: TextAlign.center,
                 style: textTheme.labelLarge?.copyWith(
                   fontFamily: 'monospace',
-                  color: _statusColor,
+                  color: _controller.statusColor,
                 ),
               ),
             ],
