@@ -111,7 +111,42 @@ final approvedProjectsStreamProvider = StreamProvider<List<ShowcaseProject>>((
     (rows) => rows.map(ShowcaseProject.fromRow).toList(),
   );
 });
+/// Tracks project IDs already rated during the current walk-up kiosk session.
+/// Resets automatically when returning to the Home screen (`/`).
+final sessionShuffleSeedProvider = NotifierProvider<SessionShuffleSeedNotifier, int>(
+  SessionShuffleSeedNotifier.new,
+);
 
+class SessionShuffleSeedNotifier extends Notifier<int> {
+  @override
+  int build() => DateTime.now().microsecondsSinceEpoch;
+
+  void rotateSeed() {
+    state = (state ^ DateTime.now().microsecondsSinceEpoch) + 1;
+  }
+}
+
+class SessionRatedProjectsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const <String>{};
+
+  void markRated(String projectId) {
+    final trimmed = projectId.trim();
+    if (trimmed.isEmpty || state.contains(trimmed)) return;
+    state = <String>{...state, trimmed};
+  }
+
+  void resetSession() {
+    ref.read(sessionShuffleSeedProvider.notifier).rotateSeed();
+    if (state.isEmpty) return;
+    state = const <String>{};
+  }
+}
+
+final sessionRatedProjectsProvider =
+    NotifierProvider<SessionRatedProjectsNotifier, Set<String>>(
+      SessionRatedProjectsNotifier.new,
+    );
 /// Synchronous snapshot list for screens expecting `List<ShowcaseProject>`.
 final showcaseProjectsProvider = Provider<List<ShowcaseProject>>((ref) {
   final asyncProjects = ref.watch(approvedProjectsStreamProvider);
@@ -141,18 +176,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(sessionRatedProjectsProvider.notifier).resetSession();
-          });
-          return CustomTransitionPage<void>(
-            key: state.pageKey,
-            child: const ShowcaseHomeScreen(),
-            transitionsBuilder: (context, animation, secondary, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-          );
-        },
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const ShowcaseHomeScreen(),
+          transitionsBuilder: (context, animation, secondary, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
       ),
       GoRoute(
         path: '/rating',
@@ -182,24 +212,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-class SessionRatedProjectsNotifier extends Notifier<Set<String>> {
-  @override
-  Set<String> build() => const <String>{};
-
-  void markRated(String projectId) {
-    final trimmed = projectId.trim();
-    if (trimmed.isEmpty || state.contains(trimmed)) return;
-    state = <String>{...state, trimmed};
-  }
-
-  void resetSession() {
-    if (state.isEmpty) return;
-    state = const <String>{};
-  }
-}
-
-final sessionRatedProjectsProvider =
-    NotifierProvider<SessionRatedProjectsNotifier, Set<String>>(
-      SessionRatedProjectsNotifier.new,
-    );

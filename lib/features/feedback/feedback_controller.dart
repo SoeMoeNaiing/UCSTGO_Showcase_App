@@ -67,7 +67,10 @@ class FeedbackController extends ChangeNotifier {
         note: noteController.text.trim(),
       );
 
-      cooldown.recordSubmission(CooldownService.feedbackScope);
+      cooldown.recordSubmission(
+        CooldownService.feedbackScope,
+        cooldown: CooldownService.feedbackCooldown,
+      );
       unawaited(ref.read(sheetsSyncServiceProvider).syncPending());
 
       if (!isMounted()) {
@@ -87,6 +90,65 @@ class FeedbackController extends ChangeNotifier {
       }
     }
   }
+
+  Future<bool> submitQuickFeedback({
+  required String sentiment,
+  required String note,
+  required bool Function() isMounted,
+}) async {
+  if (_submitting) return false;
+
+  final cooldown = ref.read(cooldownServiceProvider);
+  final remaining = cooldown.remaining(CooldownService.feedbackScope);
+  if (remaining > Duration.zero) {
+    _statusColor = AppColors.solarGold;
+    _statusMessage =
+        'WAIT ${remaining.inSeconds + 1}S BEFORE SENDING AGAIN';
+    notifyListeners();
+    return false;
+  }
+
+  _submitting = true;
+  notifyListeners();
+
+  try {
+    final deviceId = await ref.read(deviceIdServiceProvider).getOrCreateDeviceId();
+    final db = ref.read(appDatabaseProvider);
+    final id = _uuid.v4();
+
+    // Replace with your exact AppDatabase feedback insert call from lines 20-85:
+    await db.insertFeedback(
+        eventId: 'fb-${_uuid.v4()}',
+        deviceId: deviceId,
+      sentiment: sentiment,
+      note: note,
+    );
+
+    cooldown.recordSubmission(
+      CooldownService.feedbackScope,
+      cooldown: CooldownService.feedbackCooldown,
+    );
+    unawaited(ref.read(sheetsSyncServiceProvider).syncPending());
+
+    if (!isMounted()) return false;
+
+    _statusColor = AppColors.acidLime;
+    _statusMessage = 'FEEDBACK RECORDED';
+    notifyListeners();
+    return true;
+  } catch (_) {
+    if (!isMounted()) return false;
+    _statusColor = AppColors.solarGold;
+    _statusMessage = 'COULD NOT SAVE FEEDBACK';
+    notifyListeners();
+    return false;
+  } finally {
+    if (isMounted()) {
+      _submitting = false;
+      notifyListeners();
+    }
+  }
+}
 
   @override
   void dispose() {

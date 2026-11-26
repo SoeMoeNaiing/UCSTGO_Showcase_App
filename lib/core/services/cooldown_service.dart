@@ -14,14 +14,17 @@ class CooldownService {
   final Duration cooldownDuration;
   final Clock _clock;
   final Map<String, DateTime> _lastSubmittedAt = {};
+  final Map<String, Duration> _scopeCooldowns = {};
 
   static const String feedbackScope = 'feedback';
   static const String ratingScope = 'rating';
 
   static String ratingProjectScope(String projectId) => 'rating:$projectId';
 
-  void recordSubmission(String scope) {
+  void recordSubmission(String scope, {required Duration cooldown}) {
+    assert(cooldown > Duration.zero, 'cooldown must be > 0');
     _lastSubmittedAt[scope] = _clock().toUtc();
+    _scopeCooldowns[scope] = cooldown;
   }
 
   Duration remaining(String scope) {
@@ -29,8 +32,9 @@ class CooldownService {
     if (last == null) {
       return Duration.zero;
     }
+    final activeCooldown = _scopeCooldowns[scope] ?? cooldownDuration;
     final elapsed = _clock().toUtc().difference(last);
-    final left = cooldownDuration - elapsed;
+    final left = activeCooldown - elapsed;
     return left > Duration.zero ? left : Duration.zero;
   }
 

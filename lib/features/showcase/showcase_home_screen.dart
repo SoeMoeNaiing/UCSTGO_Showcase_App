@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:go_router/go_router.dart';
+import '../feedback/feedback_controller.dart';
+import '../../core/widgets/quick_feedback_modal.dart';
+import '../../core/services/cooldown_service.dart';
+import '../../core/controllers/kiosk_idle_controller.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/providers/showcase_providers.dart';
@@ -522,7 +526,53 @@ class _ShowcaseHomeScreenState extends ConsumerState<ShowcaseHomeScreen> {
                         onTapDown: (_) => setState(() => _pressingCta = true),
                         onTapUp: (_) {
                           setState(() => _pressingCta = false);
-                          context.go('/feedback');
+                          final idle = KioskIdleController(
+                            ref: ref,
+                            timeout: const Duration(seconds: 30),
+                          )..attach(context: context, isMounted: () => mounted);
+                          final cooldownRemaining = ref
+                              .read(cooldownServiceProvider)
+                              .remaining(CooldownService.feedbackScope)
+                              .inSeconds;
+                          final controller = FeedbackController(ref);
+                          unawaited(
+                            QuickFeedbackModal.show(
+                              context,
+                              cooldownRemainingSeconds: cooldownRemaining,
+                              onPauseIdle: idle.pause,
+                              onResumeIdle: idle.resume,
+                              onPingIdle: idle.ping,
+                              onTriggerBackgroundSync: () => ref
+                                  .read(sheetsSyncServiceProvider)
+                                  .syncPending(),
+                              onShowToast: (message, {required bool isSuccess}) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context)
+                                  ..hideCurrentSnackBar()
+                                  ..showSnackBar(
+                                    SnackBar(
+                                      content: Text(message),
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(
+                                        milliseconds: 1500,
+                                      ),
+                                    ),
+                                  );
+                              },
+                              onSubmitFeedback: ({
+                                required emotion,
+                                required note,
+                              }) =>
+                                  controller.submitQuickFeedback(
+                                    sentiment: emotion.keyName,
+                                    note: note,
+                                    isMounted: () => context.mounted,
+                                  ),
+                            ).whenComplete(() {
+                              controller.dispose();
+                              idle.dispose();
+                            }),
+                          );
                         },
                         onTapCancel: () => setState(() => _pressingCta = false),
                         child:

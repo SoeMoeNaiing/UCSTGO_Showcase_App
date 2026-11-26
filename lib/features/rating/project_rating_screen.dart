@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'dart:async';
 import 'dart:ui';
 
@@ -12,6 +14,7 @@ import 'rating_controller.dart';
 import '../../core/providers/showcase_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/rating_momentum_widgets.dart';
 import '../../core/widgets/pop_modal.dart';
 
 const _svgStarFilled = '''
@@ -38,6 +41,9 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
   late final RatingController _controller;
   late final KioskIdleController _idle;
   int _refreshTick = 0;
+  final ScrollController _scrollController = ScrollController();
+  ShowcaseProject? _lastRatedProject;
+  bool _showNextBoothBar = false;
 
   @override
   void initState() {
@@ -61,6 +67,7 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
   @override
   void dispose() {
     _controller.removeListener(_onControllerChanged);
+    _scrollController.dispose();
     _idle.dispose();
     _controller.dispose();
     super.dispose();
@@ -78,10 +85,27 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
       );
     } finally {
       if (mounted) {
+        final ratedNow = ref.read(sessionRatedProjectsProvider).contains(project.id);
         _idle.resume();
-        setState(() => _refreshTick++);
+        setState(() {
+          _refreshTick++;
+          if (ratedNow) {
+            _lastRatedProject = project;
+            _showNextBoothBar = true;
+          }
+        });
       }
     }
+  }
+
+
+  ShowcaseProject? _findNextUnrated(List<ShowcaseProject> candidates, Set<String> ratedIds) {
+    for (final p in candidates) {
+      if (!ratedIds.contains(p.id)) {
+        return p;
+      }
+    }
+    return null;
   }
 
   @override
@@ -92,12 +116,19 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
       'ALL',
       ...{for (final p in allProjects) p.track},
     ];
+    final ratedIds = ref.watch(sessionRatedProjectsProvider);
+    final shuffleSeed = ref.watch(sessionShuffleSeedProvider);
+    final sessionOrdered = List<ShowcaseProject>.from(allProjects)
+      ..sort((a, b) => a.id.compareTo(b.id))
+      ..shuffle(Random(shuffleSeed));
     final filtered = _controller.selectedTrack == 'ALL'
-        ? allProjects
-        : allProjects.where((p) => p.track == _controller.selectedTrack).toList();
+        ? sessionOrdered
+        : sessionOrdered.where((p) => p.track == _controller.selectedTrack).toList();
     final textTheme = Theme.of(context).textTheme;
 
-    return Listener(
+    return Stack(
+      children: [
+        Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => _idle.ping(),
       onPointerMove: (_) => _idle.ping(),
@@ -110,7 +141,6 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
           backgroundColor: const Color(0xFF070A12),
           body: SafeArea(
             child: FutureBuilder(
-              key: ValueKey('glass_rating_$_refreshTick'),
               future: _controller.loadProjectScores(db),
               builder: (context, snapshot) {
                 final scoresMap =
@@ -118,6 +148,8 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
                     const <String, ProjectScoreStat>{};
 
                 return ListView(
+                  key: const PageStorageKey<String>('rating_vertical_list'),
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
                     Row(
@@ -131,7 +163,7 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'STEP 02 // PROJECT RATINGS',
@@ -217,11 +249,19 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: SessionProgressPill(
+                        ratedCount: ref.watch(sessionRatedProjectsProvider).length,
+                        totalCount: allProjects.length,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                     for (var i = 0; i < filtered.length; i++) ...[
                       _GlassProjectCard(
                         project: filtered[i],
                         stat: scoresMap[filtered[i].id],
-                        isRated: ref.watch(sessionRatedProjectsProvider).contains(filtered[i].id),
+                        isRated: ratedIds.contains(filtered[i].id),
                         onRate: () => unawaited(_openRatingModal(filtered[i])),
                       ),
                       if (i < filtered.length - 1)
@@ -234,6 +274,33 @@ class _ProjectRatingScreenState extends ConsumerState<ProjectRatingScreen> {
           ),
         ),
       ),
+    ),
+        if (_showNextBoothBar && _lastRatedProject != null)
+          Builder(
+            builder: (context) {
+              final nextProject = _findNextUnrated(filtered, ratedIds);
+              final remaining = filtered.where((item) => !ratedIds.contains(item.id)).length;
+              if (nextProject == null) {
+                return const SizedBox.shrink();
+              }
+              return Positioned(
+                left: AppSpacing.md,
+                right: AppSpacing.md,
+                bottom: MediaQuery.of(context).padding.bottom + AppSpacing.md,
+                child: NextUnratedBoothBar(
+                  lastRatedTitle: _lastRatedProject!.title,
+                  remainingCount: remaining,
+                  nextProjectTitle: nextProject.title,
+                  onRateNext: () {
+                    setState(() => _showNextBoothBar = false);
+                    unawaited(_openRatingModal(nextProject));
+                  },
+                  onDismiss: () => setState(() => _showNextBoothBar = false),
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 }
@@ -546,6 +613,11 @@ class _GlassProjectCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  ProjectVoteStatusBadge(
+                    isRatedInSession: isRated,
+                    accentColor: project.accent,
                   ),
                   const SizedBox(width: 8),
                   SvgPicture.string(
