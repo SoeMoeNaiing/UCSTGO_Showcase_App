@@ -26,14 +26,14 @@ void main() {
         ),
       );
 
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(MaximalistBackdrop), findsOneWidget);
       expect(find.byType(UniversityHeroBanner), findsOneWidget);
       expect(find.text('TEST TICKER'), findsWidgets);
 
-      await tester.pump(const Duration(seconds: 3));
+      // Advance past any pending animation timers before disposal.
       await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 5));
     },
   );
 }

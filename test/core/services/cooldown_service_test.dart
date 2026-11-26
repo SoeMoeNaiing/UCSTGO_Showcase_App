@@ -12,7 +12,10 @@ void main() {
     expect(cooldown.remaining(CooldownService.feedbackScope), Duration.zero);
     expect(cooldown.isCoolingDown(CooldownService.feedbackScope), isFalse);
 
-    cooldown.recordSubmission(CooldownService.feedbackScope);
+    cooldown.recordSubmission(
+      CooldownService.feedbackScope,
+      cooldown: const Duration(seconds: 15),
+    );
     expect(cooldown.isCoolingDown(CooldownService.feedbackScope), isTrue);
     expect(
       cooldown.remaining(CooldownService.feedbackScope),
@@ -37,7 +40,10 @@ void main() {
       clock: () => now,
     );
 
-    cooldown.recordSubmission(CooldownService.feedbackScope);
+    cooldown.recordSubmission(
+      CooldownService.feedbackScope,
+      cooldown: const Duration(seconds: 10),
+    );
     expect(cooldown.isCoolingDown(CooldownService.feedbackScope), isTrue);
     expect(cooldown.isCoolingDown(CooldownService.ratingScope), isFalse);
   });
